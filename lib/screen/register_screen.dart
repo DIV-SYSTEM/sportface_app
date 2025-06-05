@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -41,41 +40,81 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickAadhaarImage() async {
-    final status = kIsWeb ? PermissionStatus.granted : await Permission.photos.request();
+    // Check permission status first
+    var status = await Permission.photos.status;
+    if (!status.isGranted) {
+      status = await Permission.photos.request();
+    }
+
     if (status.isGranted) {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         setState(() => _aadhaarImage = pickedFile);
       }
+    } else if (status.isPermanentlyDenied) {
+      _showPermissionDeniedDialog('gallery');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gallery permission denied')),
-      );
+      _showPermissionRetrySnackBar('Gallery', _pickAadhaarImage);
     }
   }
 
   Future<void> _pickLiveImage() async {
-    if (kIsWeb) {
+    // Check permission status first
+    var status = await Permission.camera.status;
+    if (!status.isGranted) {
+      status = await Permission.camera.request();
+    }
+
+    if (status.isGranted) {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      final pickedFile = await picker.pickImage(source: ImageSource.camera);
       if (pickedFile != null) {
         setState(() => _liveImage = pickedFile);
       }
+    } else if (status.isPermanentlyDenied) {
+      await _showPermissionModalDialog('Camera');
     } else {
-      final status = await Permission.camera.request();
-      if (status.isGranted) {
-        final picker = ImagePicker();
-        final pickedFile = await picker.pickImage(source: ImageSource.camera);
-        if (pickedFile != null) {
-          setState(() => _liveImage = pickedFile);
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission denied')),
-        );
-      }
+      _showPermissionDeniedSnackBar('Camera', _pickLiveImage);
     }
+  }
+
+  void _showPermissionDeniedModalDialog(String permissionType) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$permissionType Permission Required'),
+        content: Text(
+          'Please enable $permissionType permission in app settings to use this feature.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermissionDeniedSnackBar message, VoidCallback callback) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$message permission denied'),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: callback,
+        ),
+      ),
+    );
   }
 
   Future<void> _matchImages() async {
@@ -93,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         throw Exception('Failed to process images');
       }
       final response = await ApiService().matchFaces(aadhaarBase64, liveBase64);
-      if (response.status == 'match') {
+      if (response.status == 'success') {
         setState(() => _matchedAge = response.age);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Images matched! Age: ${response.age}')),
@@ -122,12 +161,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           password: _passwordController.text,
           age: _matchedAge,
         );
-        final image = kIsWeb ? null : File(_liveImage!.path);
+        final image = File(_liveImage!.path);
         await FirebaseService().registerUser(user, image);
         Provider.of<UserProvider>(context, listen: false).setUser(user);
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (_) => MaterialPageRoute(builder: const HomeScreen()),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,8 +175,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       setState(() => _isRegistering = false);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete form and match images first')),
+      ScaffoldMessenger.of(context).showSnackBar(content: const SnackBar(
+        'Complete form and match images first')),
       );
     }
   }
@@ -147,59 +186,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Register')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              CustomTextField(
-                label: 'Name',
-                controller: _nameController,
-                validator: Helpers.validateName,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                label: 'Email',
-                controller: _emailController,
-                validator: Helpers.validateEmail,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                label: 'Password',
-                controller: _passwordController,
-                obscureText: true,
-                validator: Helpers.validatePassword,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  CustomButton(
-                    text: 'Upload Aadhaar/PAN',
-                    onPressed: _pickAadhaarImage,
-                  ),
-                  CustomButton(
-                    text: 'Capture Live Photo',
-                    onPressed: _pickLiveImage,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (_aadhaarImage != null) const Text('Aadhaar/PAN Image Selected'),
-              if (_liveImage != null) const Text('Live Photo Selected'),
-              const SizedBox(height: 16),
-              CustomButton(
-                text: 'Match Images',
-                onPressed: _matchImages,
-                isLoading: _isMatching,
-              ),
-              const SizedBox(height: 16),
-              CustomButton(
-                text: 'Register',
-                onPressed: _register,
-                isLoading: _isRegistering,
-              ),
-            ],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                CustomTextField(
+                  labelText: 'Name',
+                  controller: _nameController,
+                  validator: validateName,
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  label: 'Email',
+                  controller: _emailController,
+                  validator: validateEmail,
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  label: 'Password',
+                  controller: _passwordController,
+                  obscureText: true,
+                  validator: validatePassword,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    CustomButton(
+                      text: 'Upload Aadhaar/PAN',
+                      onPressed: _pickAadhaarImage,
+                    ),
+                    CustomButton(
+                      text: 'Capture Live Photo',
+                      onPressed: _pickLiveImage,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (_aadhaarImage != null) const Text('Aadhaar/PAN Image Selected'),
+                if (_liveImage != null) const Text('Live Photo Selected'),
+                const SizedBox(height: 16),
+                CustomButton(
+                  text: 'Match Images',
+                  onPressed: _matchImages,
+                  isLoading: _isMatching,
+                ),
+                const SizedBox(height: 16),
+                CustomButton(
+                  text: 'Register',
+                  onPressed: _register,
+                  isLoading: _isRegistering,
+                ),
+              ],
+            ),
           ),
         ),
       ),
