@@ -9,7 +9,7 @@ import '../services/firebase_service.dart';
 import '../services/api_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/text_field.dart';
-import '../model/user_model.dart';
+import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 import '../utils/helpers.dart';
 import 'home_screen.dart';
@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickAadhaarImage() async {
-    final status = kIsWeb ? PermissionStatus.granted : await Permission.storage.request();
+    final status = kIsWeb ? PermissionStatus.granted : await Permission.photos.request();
     if (status.isGranted) {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -50,7 +50,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Storage permission denied')),
+        const SnackBar(content: Text('Gallery permission denied')),
       );
     }
   }
