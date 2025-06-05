@@ -9,7 +9,7 @@ import '../services/firebase_service.dart';
 import '../services/api_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/text_field.dart';
-import '../models/user_model.dart';
+import '../model/user_model.dart';
 import '../providers/user_provider.dart';
 import '../utils/helpers.dart';
 import 'home_screen.dart';
