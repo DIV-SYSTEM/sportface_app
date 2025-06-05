@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/api_response.dart';
+import '../model/api_response.dart';
 
 class ApiService {
   static const String _apiUrl = 'https://mock-api.example.com/face-match';
