@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class Helpers {
-  static String? fileToBase64(XFile? file) {
+  static Future<String?> fileToBase64(XFile? file) async {
     if (file == null) return null;
     if (kIsWeb) {
-      return file.readAsBytes().then((bytes) => base64Encode(bytes)).toString();
+      final bytes = await file.readAsBytes();
+      return base64Encode(bytes);
     } else {
-      final bytes = File(file.path).readAsBytesSync();
+      final bytes = await File(file.path).readAsBytes();
       return base64Encode(bytes);
     }
   }
