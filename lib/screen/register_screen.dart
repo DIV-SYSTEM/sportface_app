@@ -44,16 +44,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int _extractAgeFromDOB(String dob) {
     try {
-      final dobDate = DateTime.parse(dob);
-      final now = DateTime.now();
-      int age = now.year - dobDate.year;
-      if (now.month < dobDate.month || (now.month == dobDate.month && now.day < dobDate.day)) {
-        age--;
+      final parts = dob.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        final birthDate = DateTime(year, month, day);
+        final now = DateTime.now();
+        int age = now.year - birthDate.year;
+        if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
+          age--;
+        }
+        return age;
       }
-      return age;
-    } catch (_) {
-      return 0;
-    }
+    } catch (_) {}
+    return 0;
   }
 
   Future<void> _pickAadhaarImage() async {
@@ -107,8 +112,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final uri = Uri.parse('http://54.176.118.255:8000/api/verify/');
       final request = http.MultipartRequest('POST', uri);
+
       request.files.add(await http.MultipartFile.fromPath('aadhaar_image', _aadhaarImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('live_image', _liveImage!.path));
+      request.files.add(await http.MultipartFile.fromPath('selfie_image', _liveImage!.path));
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
