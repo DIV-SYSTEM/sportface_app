@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 import '../services/firebase_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/text_field.dart';
@@ -12,8 +14,6 @@ import '../model/user_model.dart';
 import '../providers/user_provider.dart';
 import '../utils/helpers.dart';
 import 'home_screen.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -32,6 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isMatching = false;
   bool _isRegistering = false;
   String? _dob;
+  int? _matchedAge;
 
   @override
   void dispose() {
@@ -41,8 +42,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  int _extractAgeFromDOB(String dob) {
+    try {
+      final dobDate = DateTime.parse(dob);
+      final now = DateTime.now();
+      int age = now.year - dobDate.year;
+      if (now.month < dobDate.month || (now.month == dobDate.month && now.day < dobDate.day)) {
+        age--;
+      }
+      return age;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<void> _pickAadhaarImage() async {
-    final status = await Permission.photos.request();
+    final status = kIsWeb ? PermissionStatus.granted : await Permission.photos.request();
     if (status.isGranted) {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -57,17 +72,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickLiveImage() async {
-    final status = await Permission.camera.request();
-    if (status.isGranted) {
+    if (kIsWeb) {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.camera);
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         setState(() => _liveImage = pickedFile);
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Camera permission denied')),
-      );
+      final status = await Permission.camera.request();
+      if (status.isGranted) {
+        final picker = ImagePicker();
+        final pickedFile = await picker.pickImage(source: ImageSource.camera);
+        if (pickedFile != null) {
+          setState(() => _liveImage = pickedFile);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Camera permission denied')),
+        );
+      }
     }
   }
 
@@ -80,29 +103,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     setState(() => _isMatching = true);
+
     try {
-      var request = http.MultipartRequest('POST', Uri.parse('http://54.176.118.255:8000/api/verify/'));
-      request.files.add(await http.MultipartFile.fromPath('aadhaar', _aadhaarImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('live', _liveImage!.path));
+      final uri = Uri.parse('http://54.176.118.255:8000/api/verify/');
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', _aadhaarImage!.path));
+      request.files.add(await http.MultipartFile.fromPath('live_image', _liveImage!.path));
 
-      var response = await request.send();
-      var responseBody = await response.stream.bytesToString();
-      var data = json.decode(responseBody);
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
+      final Map<String, dynamic> data = jsonDecode(response.body);
       if (data['verified'] == true) {
-        _dob = data['dob'];
+        setState(() {
+          _dob = data['dob'];
+          _matchedAge = _extractAgeFromDOB(_dob!);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Images matched! DOB: $_dob')),
+          SnackBar(content: Text('Face matched! Age: $_matchedAge')),
         );
-        _register();
       } else {
         showDialog(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Match Failed'),
+          builder: (_) => AlertDialog(
+            title: const Text('Verification Failed'),
             content: Text(data['message'] ?? 'Unknown error'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
             ],
           ),
         );
@@ -112,11 +139,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text('Error: $e')),
       );
     }
+
     setState(() => _isMatching = false);
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate() && _dob != null && _liveImage != null) {
+    if (_formKey.currentState!.validate() && _matchedAge != null && _liveImage != null) {
       setState(() => _isRegistering = true);
       try {
         final user = UserModel(
@@ -124,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           name: _nameController.text,
           email: _emailController.text,
           password: _passwordController.text,
-          age: Helpers.extractAgeFromDOB(_dob!),
+          age: _matchedAge,
         );
         final image = File(_liveImage!.path);
         await FirebaseService().registerUser(user, image);
@@ -139,6 +167,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
       setState(() => _isRegistering = false);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Complete form and match images first')),
+      );
     }
   }
 
@@ -196,7 +228,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
               CustomButton(
                 text: 'Register',
-                onPressed: () {}, // Disabled, as match triggers register
+                onPressed: _register,
                 isLoading: _isRegistering,
               ),
             ],
