@@ -29,15 +29,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   XFile? _aadhaarImage;
-  XFile? _liveImage;
+  XFile? _image;
   bool _isMatching = false;
   bool _isRegistering = false;
-  String? _dob;
-  int? _matchedAge;
+  bool _facesMatched = false;
 
   // Face++ API credentials
   final String _apiKey = 'M--3IqwyiBUIDn_gVgKnc9jsTCacghA6';
-  final String _apiSecret = 'XYwJlPWvbOBRoEiR85D9-zVRbHiuTLxM';
+  final String _apiSecret = 'XYwJmPWvbOBRoEiR85D9-zVRbHiuTLxM';
 
   @override
   void dispose() {
@@ -45,25 +44,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  int _extractAgeFromDOB(String dob) {
-    try {
-      final parts = dob.split('/');
-      if (parts.length == 3) {
-        final day = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final year = int.parse(parts[2]);
-        final birthDate = DateTime(year, month, day);
-        final now = DateTime.now();
-        int age = now.year - birthDate.year;
-        if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
-          age--;
-        }
-        return age;
-      }
-    } catch (_) {}
-    return 0;
   }
 
   Future<void> _pickAadhaarImage() async {
@@ -86,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
-        setState(() => _liveImage = pickedFile);
+        setState(() => _image = pickedFile);
       }
     } else {
       final status = await Permission.camera.request();
@@ -94,7 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final picker = ImagePicker();
         final pickedFile = await picker.pickImage(source: ImageSource.camera);
         if (pickedFile != null) {
-          setState(() => _liveImage = pickedFile);
+          setState(() => _image = pickedFile);
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _matchImages() async {
-    if (_aadhaarImage == null || _liveImage == null) {
+    if (_aadhaarImage == null || _image == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload both images')),
       );
@@ -123,7 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // Add images as files (highest precedence)
       final aadhaarFile = File(_aadhaarImage!.path);
-      final liveFile = File(_liveImage!.path);
+      final liveFile = File(_image!.path);
 
       request.files.add(
         await http.MultipartFile.fromPath('image_file1', aadhaarFile.path),
@@ -156,6 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         );
+        setState(() => _facesMatched = false);
       } else {
         // Check confidence against threshold
         final confidence = data['confidence'] as double?;
@@ -163,15 +144,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final threshold = thresholds?['1e-4'] as double? ?? 71.8;
 
         if (confidence != null && confidence >= threshold) {
-          // Assuming DOB is provided externally or hardcoded for demo
-          setState(() {
-            _dob = '01/01/1990'; // Replace with actual DOB extraction if available
-            _matchedAge = _extractAgeFromDOB(_dob!);
-          });
+          setState(() => _facesMatched = true);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Face matched! Age: $_matchedAge')),
+            const SnackBar(content: Text('Faces matched successfully!')),
           );
         } else {
+          setState(() => _facesMatched = false);
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -191,25 +169,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Connection error: Server unreachable')),
       );
+      setState(() => _facesMatched = false);
     } on TimeoutException {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Timeout: Server took too long to respond')),
       );
+      setState(() => _facesMatched = false);
     } on http.ClientException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Client Error: ${e.message}')),
       );
+      setState(() => _facesMatched = false);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unexpected Error: $e')),
       );
+      setState(() => _facesMatched = false);
     }
 
     setState(() => _isMatching = false);
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate() && _matchedAge != null && _liveImage != null) {
+    if (_formKey.currentState!.validate() && _facesMatched && _image != null) {
       setState(() => _isRegistering = true);
       try {
         final user = UserModel(
@@ -217,9 +199,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           name: _nameController.text,
           email: _emailController.text,
           password: _passwordController.text,
-          age: _matchedAge,
         );
-        final image = File(_liveImage!.path);
+        final image = File(_image!.path);
         await FirebaseService().registerUser(user, image);
         Provider.of<UserProvider>(context, listen: false).setUser(user);
         Navigator.pushReplacement(
@@ -283,7 +264,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               if (_aadhaarImage != null) const Text('Aadhaar/PAN Image Selected'),
-              if (_liveImage != null) const Text('Live Photo Selected'),
+              if (_image != null) const Text('Live Photo Selected'),
               const SizedBox(height: 16),
               CustomButton(
                 text: 'Match Images',
