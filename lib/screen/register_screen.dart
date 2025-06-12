@@ -99,55 +99,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> _matchImages() async {
-    if (_aadhaarImage == null || _liveImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload both images')),
-      );
-      return;
-    }
-
-    setState(() => _isMatching = true);
-
-    try {
-      final uri = Uri.parse('http://54.176.118.255:8000/api/verify/');
-      final request = http.MultipartRequest('POST', uri);
-
-      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', _aadhaarImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('selfie_image', _liveImage!.path));
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      if (data['verified'] == true) {
-        setState(() {
-          _dob = data['dob'];
-          _matchedAge = _extractAgeFromDOB(_dob!);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched! Age: $_matchedAge')),
-        );
-      } else {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Verification Failed'),
-            content: Text(data['message'] ?? 'Unknown error'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-
-    setState(() => _isMatching = false);
+ Future<void> _matchImages() async {
+  if (_aadhaarImage == null || _liveImage == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please upload both images')),
+    );
+    return;
   }
+
+  setState(() => _isMatching = true);
+
+  try {
+    final uri = Uri.parse('http://54.176.118.255:8000/api/verify/');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Compress image if needed (basic approach)
+    final aadhaarFile = File(_aadhaarImage!.path);
+    final liveFile = File(_liveImage!.path);
+
+    request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
+    request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
+
+    // Add timeout handling
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+
+    // Check if response is complete
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode != 200) {
+      throw Exception('Server error: ${response.statusCode}');
+    }
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+    if (data['verified'] == true) {
+      setState(() {
+        _dob = data['dob'];
+        _matchedAge = _extractAgeFromDOB(_dob!);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Face matched! Age: $_matchedAge')),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Verification Failed'),
+          content: Text(data['message'] ?? 'Unknown error'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          ],
+        ),
+      );
+    }
+  } on SocketException {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Connection error: Server unreachable')),
+    );
+  } on TimeoutException {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Timeout: Server took too long to respond')),
+    );
+  } on http.ClientException catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Client Error: ${e.message}')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Unexpected Error: $e')),
+    );
+  }
+
+  setState(() => _isMatching = false);
+}
+
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate() && _matchedAge != null && _liveImage != null) {
