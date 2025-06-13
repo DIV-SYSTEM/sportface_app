@@ -110,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isMatching = true);
 
     try {
-      final uri = Uri.parse('http://54.176.118.255:8000/api/verify/');
+      final uri = Uri.parse('https://95fc-60-254-107-193.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri);
 
       request.files.add(await http.MultipartFile.fromPath('aadhaar_image', _aadhaarImage!.path));
