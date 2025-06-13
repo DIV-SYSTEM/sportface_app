@@ -1,13 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
-import 'package:http/http.dart' as http;
 import '../services/firebase_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/text_field.dart';
@@ -25,18 +21,15 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController(text: 'John Doe'); // Dummy name
+  final _emailController = TextEditingController(text: 'john.doe@example.com'); // Dummy email
+  final _passwordController = TextEditingController(text: 'Password123!'); // Dummy password
   XFile? _aadhaarImage;
-  XFile? _image;
+  XFile? _liveImage;
   bool _isMatching = false;
   bool _isRegistering = false;
-  bool _facesMatched = false;
-
-  // Face++ API credentials
-  final String _apiKey = 'M--3IqwyiBUIDn_gVgKnc9jsTCacghA6';
-  final String _apiSecret = 'XYwJmPWvbOBRoEiR85D9-zVRbHiuTLxM';
+  String? _dob = '01/01/1990'; // Dummy DOB
+  int? _matchedAge = 35; // Dummy age
 
   @override
   void dispose() {
@@ -47,45 +40,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickAadhaarImage() async {
-    final status = kIsWeb ? PermissionStatus.granted : await Permission.photos.request();
-    if (status.isGranted) {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() => _aadhaarImage = pickedFile);
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gallery permission denied')),
-      );
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() => _aadhaarImage = pickedFile);
     }
   }
 
   Future<void> _pickLiveImage() async {
-    if (kIsWeb) {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() => _image = pickedFile);
-      }
-    } else {
-      final status = await Permission.camera.request();
-      if (status.isGranted) {
-        final picker = ImagePicker();
-        final pickedFile = await picker.pickImage(source: ImageSource.camera);
-        if (pickedFile != null) {
-          setState(() => _image = pickedFile);
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission denied')),
-        );
-      }
+    final picker = ImagePicker();
+    final pickedFile = kIsWeb
+        ? await picker.pickImage(source: ImageSource.gallery)
+        : await picker.pickImage(source: ImageSource.camera);
+    if (pickedFile != null) {
+      setState(() => _liveImage = pickedFile);
     }
   }
 
   Future<void> _matchImages() async {
-    if (_aadhaarImage == null || _image == null) {
+    if (_aadhaarImage == null || _liveImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload both images')),
       );
@@ -94,104 +67,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isMatching = true);
 
-    try {
-      final uri = Uri.parse('https://api-us.faceplusplus.com/facepp/v3/compare');
-      final request = http.MultipartRequest('POST', uri);
+    // Simulate successful image matching
+    await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
+    setState(() {
+      _dob = '01/01/1990'; // Dummy DOB
+      _matchedAge = 35; // Dummy age
+    });
 
-      request.fields['api_key'] = _apiKey;
-      request.fields['api_secret'] = _apiSecret;
-
-      // Add images as files (highest precedence)
-      final aadhaarFile = File(_aadhaarImage!.path);
-      final liveFile = File(_image!.path);
-
-      request.files.add(
-        await http.MultipartFile.fromPath('image_file1', aadhaarFile.path),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('image_file2', liveFile.path),
-      );
-
-      // Add timeout handling
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode != 200) {
-        throw Exception('Server error: ${response.statusCode}');
-      }
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-
-      if (data.containsKey('error_message')) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Verification Failed'),
-            content: Text(data['error_message'] ?? 'Unknown error'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        setState(() => _facesMatched = false);
-      } else {
-        // Check confidence against threshold
-        final confidence = data['confidence'] as double?;
-        final thresholds = data['thresholds'] as Map<String, dynamic>?;
-        final threshold = thresholds?['1e-4'] as double? ?? 71.8;
-
-        if (confidence != null && confidence >= threshold) {
-          setState(() => _facesMatched = true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Faces matched successfully!')),
-          );
-        } else {
-          setState(() => _facesMatched = false);
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('Verification Failed'),
-              content: const Text('Faces do not match with sufficient confidence'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
-        }
-      }
-    } on SocketException {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connection error: Server unreachable')),
-      );
-      setState(() => _facesMatched = false);
-    } on TimeoutException {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Timeout: Server took too long to respond')),
-      );
-      setState(() => _facesMatched = false);
-    } on http.ClientException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Client Error: ${e.message}')),
-      );
-      setState(() => _facesMatched = false);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected Error: $e')),
-      );
-      setState(() => _facesMatched = false);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Face matched! Age: $_matchedAge')),
+    );
 
     setState(() => _isMatching = false);
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate() && _facesMatched && _image != null) {
+    if (_formKey.currentState!.validate()) {
       setState(() => _isRegistering = true);
       try {
         final user = UserModel(
@@ -199,9 +90,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           name: _nameController.text,
           email: _emailController.text,
           password: _passwordController.text,
+          age: _matchedAge ?? 35, // Use dummy age if not set
         );
-        final image = File(_image!.path);
-        await FirebaseService().registerUser(user, image);
+
+        // Simulate Firebase registration
+        if (_liveImage != null) {
+          final image = File(_liveImage!.path);
+          await FirebaseService().registerUser(user, image); // Assuming this works or is mocked
+        } else {
+          // Even if no image, proceed with dummy data
+          await Future.delayed(const Duration(seconds: 1)); // Simulate delay
+        }
+
         Provider.of<UserProvider>(context, listen: false).setUser(user);
         Navigator.pushReplacement(
           context,
@@ -215,7 +115,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _isRegistering = false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete form and match images first')),
+        const SnackBar(content: Text('Please complete the form')),
       );
     }
   }
@@ -264,7 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               if (_aadhaarImage != null) const Text('Aadhaar/PAN Image Selected'),
-              if (_image != null) const Text('Live Photo Selected'),
+              if (_liveImage != null) const Text('Live Photo Selected'),
               const SizedBox(height: 16),
               CustomButton(
                 text: 'Match Images',
@@ -276,6 +176,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 text: 'Register',
                 onPressed: _register,
                 isLoading: _isRegistering,
+              ),
+              const SizedBox(height: 16),
+              CustomButton(
+                text: 'Skip to HomeScreen',
+                onPressed: () {
+                  final user = UserModel(
+                    id: const Uuid().v4(),
+                    name: 'Dummy User',
+                    email: 'dummy@example.com',
+                    password: 'DummyPass123!',
+                    age: 35,
+                  );
+                  Provider.of<UserProvider>(context, listen: false).setUser(user);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  );
+                },
               ),
             ],
           ),
