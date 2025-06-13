@@ -30,6 +30,7 @@ dependencies:
   flutter_spinkit: ^5.2.0
   uuid: ^4.2.2
   permission_handler: ^11.3.1
+  image: ^4.1.7
   
 
 
