@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import '../services/firebase_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/text_field.dart';
@@ -21,7 +22,7 @@ class RegisterScreen extends StatefulWidget {
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }
-  
+
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -65,9 +66,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final status = kIsWeb ? PermissionStatus.granted : await Permission.photos.request();
     if (status.isGranted) {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 100, // No compression
+        maxWidth: 1920, // Reasonable resolution
+        maxHeight: 1080,
+      );
       if (pickedFile != null) {
         setState(() => _aadhaarImage = pickedFile);
+        if (kDebugMode) {
+          print('Aadhaar image selected: ${pickedFile.path}, size: ${await File(pickedFile.path).length()} bytes');
+        }
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,26 +86,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickLiveImage() async {
-    if (kIsWeb) {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() => _liveImage = pickedFile);
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
+      imageQuality: 100, // No compression
+      maxWidth: 1920, // Reasonable resolution
+      maxHeight: 1080,
+    );
+    if (pickedFile != null) {
+      setState(() => _liveImage = pickedFile);
+      if (kDebugMode) {
+        print('Live image selected: ${pickedFile.path}, size: ${await File(pickedFile.path).length()} bytes');
       }
-    } else {
+    } else if (!kIsWeb) {
       final status = await Permission.camera.request();
-      if (status.isGranted) {
-        final picker = ImagePicker();
-        final pickedFile = await picker.pickImage(source: ImageSource.camera);
-        if (pickedFile != null) {
-          setState(() => _liveImage = pickedFile);
-        }
-      } else {
+      if (!status.isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Camera permission denied')),
         );
       }
     }
+  }
+
+  Future<File> _preprocessImage(XFile imageFile) async {
+    final file = File(imageFile.path);
+    if (!await file.exists()) {
+      throw Exception('Image file does not exist: ${imageFile.path}');
+    }
+
+    // Read the image
+    final imageBytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(imageBytes);
+    if (image == null) {
+      throw Exception('Failed to decode image: ${imageFile.path}');
+    }
+
+    // Fix orientation (if needed)
+    image = img.bakeOrientation(image);
+
+    // Convert to JPEG with high quality
+    final tempDir = Directory.systemTemp;
+    final tempFile = File('${tempDir.path}/${imageFile.name}.jpg');
+    await tempFile.writeAsBytes(img.encodeJpg(image, quality: 100));
+
+    if (kDebugMode) {
+      print('Preprocessed image saved: ${tempFile.path}, size: ${await tempFile.length()} bytes');
+    }
+    return tempFile;
   }
 
   Future<void> _matchImages() async {
@@ -113,11 +149,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final uri = Uri.parse('https://6a10-60-254-107-193.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri);
 
-      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', _aadhaarImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('selfie_image', _liveImage!.path));
+      // Add headers to match Postman
+      request.headers['Content-Type'] = 'multipart/form-data';
+      request.headers['Accept'] = 'application/json';
 
-      final streamedResponse = await request.send();
+      // Preprocess images to ensure quality and format
+      final aadhaarFile = await _preprocessImage(_aadhaarImage!);
+      final liveFile = await _preprocessImage(_liveImage!);
+
+      // Verify file integrity
+      if (!await aadhaarFile.exists() || !await liveFile.exists()) {
+        throw Exception('Preprocessed image files are missing');
+      }
+
+      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
+      request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
+
+      // Send request with timeout
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print('API response: ${response.statusCode}, body: ${response.body}');
+      }
+
+      if (response.statusCode != 200) {
+        throw Exception('Server error: ${response.statusCode}');
+      }
 
       final Map<String, dynamic> data = jsonDecode(response.body);
       if (data['verified'] == true) {
@@ -141,6 +199,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } catch (e) {
+      if (kDebugMode) {
+        print('Error in _matchImages: $e');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -160,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           password: _passwordController.text,
           age: _matchedAge,
         );
-        final image = File(_liveImage!.path);
+        final image = await _preprocessImage(_liveImage!); // Preprocess live image for Firebase
         await FirebaseService().registerUser(user, image);
         Provider.of<UserProvider>(context, listen: false).setUser(user);
         Navigator.pushReplacement(
@@ -168,6 +229,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } catch (e) {
+        if (kDebugMode) {
+          print('Error in _register: $e');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -236,6 +300,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 text: 'Register',
                 onPressed: _register,
                 isLoading: _isRegistering,
+              ),
+              const SizedBox(height: 16),
+              CustomButton(
+                text: 'Skip to HomeScreen',
+                onPressed: () {
+                  final user = UserModel(
+                    id: const Uuid().v4(),
+                    name: 'Dummy User',
+                    email: 'dummy@example.com',
+                    password: 'DummyPass123!',
+                    age: 35,
+                  );
+                  Provider.of<UserProvider>(context, listen: false).setUser(user);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  );
+                },
               ),
             ],
           ),
