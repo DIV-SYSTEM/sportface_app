@@ -166,7 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
 
       // Send request with timeout
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
       final response = await http.Response.fromStream(streamedResponse);
 
       if (kDebugMode) {
