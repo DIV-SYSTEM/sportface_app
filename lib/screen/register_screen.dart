@@ -166,15 +166,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('API response: ${response.statusCode}, body: ${response.body}');
       }
 
-      // Try to parse the response body, even for non-200 status codes
-      Map<String, dynamic>? data;
+      // Initialize data as a non-nullable empty map
+      Map<String, dynamic> data = {};
+
+      // Try to parse the response body
       try {
         data = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (e) {
         if (kDebugMode) {
           print('Failed to parse JSON: $e, body: ${response.body}');
         }
-        // Fallback message for non-JSON responses
+        // Fallback for non-JSON responses
         data = {'verified': false, 'message': 'Server returned invalid response'};
       }
 
