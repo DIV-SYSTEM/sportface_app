@@ -11,7 +11,7 @@ class FirebaseService {
 
   Future<UserModel?> login(String email, String password) async {
     try {
-      final snapshot = awaited _db.child('users').get().timeout(
+      final snapshot = await _db.child('users').get().timeout(
             const Duration(seconds: 30),
             onTimeout: () => throw Exception('Database fetch timed out'),
           );
