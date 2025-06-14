@@ -1,5 +1,3 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 class UserModel {
   final String id;
   final String name;
@@ -25,8 +23,8 @@ class UserModel {
         'image_url': imageUrl,
       };
 
-  factory UserModel.fromJson(String id, Map<String, dynamic> json) async {
-    final user = UserModel(
+  factory UserModel.fromJson(String id, Map<String, dynamic> json) {
+    return UserModel(
       id: id,
       name: json['name'] as String,
       email: json['email'] as String,
@@ -34,11 +32,5 @@ class UserModel {
       age: json['age'] as int?,
       imageUrl: json['image_url'] as String?,
     );
-    // Ensure imageUrl is stored in SharedPreferences
-    if (user.imageUrl != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_${user.id}_image', user.imageUrl!);
-    }
-    return user;
   }
 }
