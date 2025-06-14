@@ -11,11 +11,11 @@ final List<CompanionModel> companionData = [
     description: "Looking for passionate football players for a weekend match.",
     date: "2025-05-18",
     time: "5:00 PM",
-    gender: "All",
-    ageLimit: "18-25",
+    gender: "Any",
+    ageLimit: "18-30",
     paidStatus: "Unpaid",
-    food: "Not Included",
-    travel: "Own Vehicle",
+    latitude: 28.5829,
+    longitude: 77.2334,
   ),
   CompanionModel(
     id: "event2",
@@ -28,10 +28,10 @@ final List<CompanionModel> companionData = [
     date: "2025-05-20",
     time: "10:00 AM",
     gender: "Male",
-    ageLimit: "18-25",
+    ageLimit: "18-30",
     paidStatus: "Paid",
-    food: "Included",
-    travel: "Transport",
+    latitude: 18.9389,
+    longitude: 72.8258,
   ),
   CompanionModel(
     id: "event3",
@@ -44,10 +44,10 @@ final List<CompanionModel> companionData = [
     date: "2025-05-22",
     time: "6:00 PM",
     gender: "Female",
-    ageLimit: "18-25",
+    ageLimit: "18-30",
     paidStatus: "Unpaid",
-    food: "Included",
-    travel: "Shared Cab",
+    latitude: 12.9716,
+    longitude: 77.5946,
   ),
 ];
 
@@ -55,14 +55,21 @@ final List<GroupModel> groupData = [
   GroupModel(
     groupId: "group1",
     eventId: "event1",
-    groupName: "Delhi Football Crew",
+    groupName: "Football Group by Demo User",
     organiserName: "Demo User",
-    members: ["Demo User"],
+    members: ["Demo User", "Sneha Roy"],
   ),
   GroupModel(
     groupId: "group2",
+    eventId: "event2",
+    groupName: "Cricket League by Rahul",
+    organiserName: "Rahul Verma",
+    members: ["Rahul Verma"],
+  ),
+  GroupModel(
+    groupId: "group3",
     eventId: "event3",
-    groupName: "Bangalore Badminton Club",
+    groupName: "Badminton Group by Sneha",
     organiserName: "Sneha Roy",
     members: ["Sneha Roy"],
   ),
@@ -79,8 +86,13 @@ final Map<String, List<MessageModel>> groupMessages = {
   "group1": [
     MessageModel(
       sender: "Demo User",
-      text: "Hey, ready for the match?",
-      timestamp: "2025-05-16 14:00",
+      text: "Hey, excited for the match?",
+      timestamp: "2025-05-17 10:00 AM",
+    ),
+    MessageModel(
+      sender: "Sneha Roy",
+      text: "Absolutely, let's win this!",
+      timestamp: "2025-05-17 10:05 AM",
     ),
   ],
 };
@@ -92,5 +104,9 @@ final List<String> availableUsers = [
 ];
 
 void logGroupData(String context) {
-  print("$context: groupData = ${groupData.map((g) => '${g.groupId}: ${g.groupName}, Organiser: ${g.organiserName}, Members: ${g.members}').toList()}");
+  print("Group Data ($context):");
+  for (var group in groupData) {
+    print(
+        "Group ${group.groupId}: Name=${group.groupName}, Organiser=${group.organiserName}, Members=${group.members}");
+  }
 }
