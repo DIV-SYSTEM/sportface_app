@@ -78,7 +78,7 @@ class CompanionCard extends StatelessWidget {
                 height: 60,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.image),
+                    const Icon(Icons.image),
               ),
             ),
             const SizedBox(width: 12),
@@ -130,7 +130,6 @@ class CompanionCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -138,12 +137,9 @@ class CompanionCard extends StatelessWidget {
                     children: [
                       _buildInfoTag("Gender: ${data.gender}"),
                       _buildInfoTag("Type: ${data.paidStatus}"),
-                      _buildInfoTag("Age: ${data.ageLimit}"),
-                      _buildInfoTag("Food: ${data.food}"),
-                      _buildInfoTag("Travel: ${data.travel}"),
+                      _buildInfoTag("Age Limit: ${data.ageLimit}"),
                     ],
                   ),
-
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -175,18 +171,18 @@ class CompanionCard extends StatelessWidget {
       ),
     );
   }
-}
 
-Widget _buildInfoTag(String text) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: Colors.grey[200],
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(fontSize: 12, color: Colors.black87),
-    ),
-  );
+  Widget _buildInfoTag(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, color: Colors.black87),
+      ),
+    );
+  }
 }
