@@ -78,7 +78,6 @@ class HomeScreen extends StatelessWidget {
                           builder: (_) => const Home_Food(initialUser: "Demo User")),
                         ),
                       ),
-                    
                     const SizedBox(height: 20),
                     _buildAnimatedCard(
                       context,
@@ -91,7 +90,6 @@ class HomeScreen extends StatelessWidget {
                           builder: (_) => const Home_Travel(initialUser: "Demo User")),
                         ),
                       ),
-                    
                   ],
                 ),
               ),
