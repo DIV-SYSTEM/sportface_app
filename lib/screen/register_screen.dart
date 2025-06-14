@@ -146,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isMatching = true);
 
     try {
-      final uri = Uri.parse('https://6a10-60-254-107-193.ngrok-free.app/api/verify/');
+      final uri = Uri.parse('https://fab9-125-99-215-59.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri);
 
       // Add headers to match Postman
