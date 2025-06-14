@@ -1,17 +1,29 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/user_provider.dart';
 
 class CircularAvatar extends StatelessWidget {
   final String? imageUrl;
   final double radius;
+  final String? userId;
 
-  const CircularAvatar({super.key, this.imageUrl, this.radius = 20.0});
+  const CircularAvatar({
+    super.key,
+    this.imageUrl,
+    this.radius = 20.0,
+    this.userId,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context, listen: false).user;
+    final effectiveUserId = userId ?? user?.id;
+
     return FutureBuilder<String?>(
-      future: _getImage(),
+      future: _getImage(effectiveUserId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return CircleAvatar(
@@ -60,12 +72,10 @@ class CircularAvatar extends StatelessWidget {
     );
   }
 
-  Future<String?> _getImage() async {
+  Future<String?> _getImage(String? userId) async {
     if (imageUrl != null) return imageUrl;
-    // Fallback to SharedPreferences if imageUrl is null
-    final user = Provider.of<UserProvider>(context, listen: false).user;
-    if (user?.id == null) return null;
+    if (userId == null) return null;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_${user!.id}_image');
+    return prefs.getString('user_${userId}_image');
   }
 }
