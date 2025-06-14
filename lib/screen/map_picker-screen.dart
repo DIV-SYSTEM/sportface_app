@@ -41,14 +41,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   }
 
   void _confirmLocation() {
-    if (pickedLocation != null) {
-      Navigator.pop(context, {
-        'address': selectedAddress.isNotEmpty
-            ? selectedAddress
-            : 'Lat: ${pickedLocation!.latitude}, Lng: ${pickedLocation!.longitude}',
-        'latitude': pickedLocation!.latitude,
-        'longitude': pickedLocation!.longitude,
-      });
+    if (selectedAddress.isNotEmpty) {
+      Navigator.pop(context, selectedAddress);
+    } else if (pickedLocation != null) {
+      Navigator.pop(
+        context,
+        'Lat: ${pickedLocation!.latitude}, Lng: ${pickedLocation!.longitude}',
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a location on the map.")),
@@ -79,18 +78,21 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   subdomains: const ['a', 'b', 'c'],
                 ),
                 if (pickedLocation != null)
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: pickedLocation!,
-                        builder: (ctx) => const Icon(
-                          Icons.location_pin,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      ),
-                    ],
-                  ),
+  MarkerLayer(
+    markers: [
+      Marker(
+        point: pickedLocation!,
+        width: 40,
+        height: 40,
+        child: const Icon(
+          Icons.location_pin,
+          color: Colors.red,
+          size: 40,
+        ),
+      ),
+    ],
+  ),
+
               ],
             ),
           ),
