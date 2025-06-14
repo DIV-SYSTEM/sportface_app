@@ -29,15 +29,12 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
   final TextEditingController descriptionController = TextEditingController();
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
+  double? latitude;
+  double? longitude;
 
-  // Existing fields
   String? gender;
   String? ageLimit;
   String? paidStatus;
-
-  // New fields for food and travel
-  String? food;
-  String? travel;
 
   final List<String> sports = Constants.sports;
 
@@ -82,8 +79,8 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
         gender != null &&
         ageLimit != null &&
         paidStatus != null &&
-        food != null &&
-        travel != null) {
+        latitude != null &&
+        longitude != null) {
       final eventId = "event${companionData.length + 1}";
       final groupId = "group${groupData.length + 1}";
       final organiserName = organiserController.text.trim();
@@ -99,13 +96,13 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
         city: cityController.text.trim(),
         description: descriptionController.text.trim(),
         date:
-        "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
+            "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
         time: selectedTime!.format(context),
         gender: gender!,
         ageLimit: ageLimit!,
         paidStatus: paidStatus!,
-        food: food!,
-        travel: travel!,
+        latitude: latitude!,
+        longitude: longitude!,
       );
       final newGroup = GroupModel(
         groupId: groupId,
@@ -184,9 +181,11 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                         builder: (context) => const MapPickerScreen(),
                       ),
                     );
-                    if (result != null && result is String) {
+                    if (result != null && result is Map) {
                       setState(() {
-                        venueController.text = result;
+                        venueController.text = result['address'];
+                        latitude = result['latitude'];
+                        longitude = result['longitude'];
                       });
                     }
                   },
@@ -200,7 +199,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                     prefixIcon: Icon(Icons.location_city),
                   ),
                   validator: (value) =>
-                  value == null || value.isEmpty ? 'Please enter city' : null,
+                      value == null || value.isEmpty ? 'Please enter city' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -227,7 +226,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                     prefixIcon: Icon(Icons.transgender),
                   ),
                   validator: (value) =>
-                  value == null || value.isEmpty ? 'Please select gender' : null,
+                      value == null || value.isEmpty ? 'Please select gender' : null,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -251,7 +250,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                     prefixIcon: Icon(Icons.calendar_today),
                   ),
                   validator: (value) =>
-                  value == null || value.isEmpty ? 'Please select age limit' : null,
+                      value == null || value.isEmpty ? 'Please select age limit' : null,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -270,40 +269,6 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                   validator: Validators.validatePaidStatus,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: food,
-                  items: ['Included', 'Not Included'].map((f) {
-                    return DropdownMenuItem(
-                      value: f,
-                      child: Text(f),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => food = value),
-                  decoration: const InputDecoration(
-                    labelText: "Food",
-                    prefixIcon: Icon(Icons.restaurant),
-                  ),
-                  validator: (value) =>
-                  value == null || value.isEmpty ? 'Please select food option' : null,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: travel,
-                  items: ['Own Vehicle', 'Transport', 'Shared Cab'].map((t) {
-                    return DropdownMenuItem(
-                      value: t,
-                      child: Text(t),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => travel = value),
-                  decoration: const InputDecoration(
-                    labelText: "Travel",
-                    prefixIcon: Icon(Icons.directions_car),
-                  ),
-                  validator: (value) =>
-                  value == null || value.isEmpty ? 'Please select travel option' : null,
-                ),
-                const SizedBox(height: 12),
                 TextFormField(
                   readOnly: true,
                   onTap: _pickDate,
@@ -315,7 +280,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                         : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
                   ),
                   validator: (value) =>
-                  selectedDate == null ? 'Please select a date' : null,
+                      selectedDate == null ? 'Please select a date' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -329,7 +294,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                         : selectedTime!.format(context),
                   ),
                   validator: (value) =>
-                  selectedTime == null ? 'Please select a time' : null,
+                      selectedTime == null ? 'Please select a time' : null,
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
