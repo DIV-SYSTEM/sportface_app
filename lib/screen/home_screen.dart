@@ -63,10 +63,9 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => SportCompanionScreen(userName: user?.name ?? 'Guest'),
+                          builder: (_) => const Home_Sport(initialUser: "Demo User")),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 20),
                     _buildAnimatedCard(
                       context,
@@ -76,10 +75,10 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => FoodCompanionScreen(userName: user?.name ?? 'Guest'),
+                          builder: (_) => const Home_Food(initialUser: "Demo User")),
                         ),
                       ),
-                    ),
+                    
                     const SizedBox(height: 20),
                     _buildAnimatedCard(
                       context,
@@ -89,10 +88,10 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => TravelCompanionScreen(userName: user?.name ?? 'Guest'),
+                          builder: (_) => const Home_Travel(initialUser: "Demo User")),
                         ),
                       ),
-                    ),
+                    
                   ],
                 ),
               ),
