@@ -166,25 +166,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('API response: ${response.statusCode}, body: ${response.body}');
       }
 
-      if (response.statusCode != 200) {
-        throw Exception('Server error: ${response.statusCode}');
+      // Try to parse the response body, even for non-200 status codes
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (e) {
+        if (kDebugMode) {
+          print('Failed to parse JSON: $e, body: ${response.body}');
+        }
+        // Fallback message for non-JSON responses
+        data = {'verified': false, 'message': 'Server returned invalid response'};
       }
 
-      final Map<String, dynamic> data = jsonDecode(response.body);
       if (data['verified'] == true) {
         setState(() {
-          _dob = data['dob'];
-          _matchedAge = _extractAgeFromDOB(_dob!);
+          _dob = data['dob'] as String?;
+          _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched! Age: $_matchedAge')),
+          SnackBar(content: Text('Face matched! Age: ${_matchedAge ?? 'Unknown'}')),
         );
       } else {
+        // Show AlertDialog for both 200 and non-200 status codes with a message
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Verification Failed'),
-            content: Text(data['message'] ?? 'Unknown error'),
+            content: Text(data['message']?.toString() ?? 'Unknown error'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
             ],
@@ -195,8 +203,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (kDebugMode) {
         print('Error in _matchImages: $e');
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+      // Show AlertDialog instead of SnackBar for all errors
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to verify images: ${e.toString()}'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          ],
+        ),
       );
     }
 
