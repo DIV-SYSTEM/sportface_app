@@ -15,7 +15,7 @@ import '../model/user_model.dart';
 import '../providers/user_provider.dart';
 import '../utils/helpers.dart';
 import 'home_screen.dart';
- 
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -68,8 +68,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 100, // No compression
-        maxWidth: 1920, // Reasonable resolution
+        imageQuality: 100,
+        maxWidth: 1920,
         maxHeight: 1080,
       );
       if (pickedFile != null) {
@@ -89,8 +89,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
-      imageQuality: 100, // No compression
-      maxWidth: 1920, // Reasonable resolution
+      imageQuality: 100,
+      maxWidth: 1920,
       maxHeight: 1080,
     );
     if (pickedFile != null) {
@@ -114,17 +114,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       throw Exception('Image file does not exist: ${imageFile.path}');
     }
 
-    // Read the image
     final imageBytes = await file.readAsBytes();
     img.Image? image = img.decodeImage(imageBytes);
     if (image == null) {
       throw Exception('Failed to decode image: ${imageFile.path}');
     }
 
-    // Fix orientation (if needed)
     image = img.bakeOrientation(image);
 
-    // Convert to JPEG with high quality
     final tempDir = Directory.systemTemp;
     final tempFile = File('${tempDir.path}/${imageFile.name}.jpg');
     await tempFile.writeAsBytes(img.encodeJpg(image, quality: 100));
@@ -149,15 +146,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final uri = Uri.parse('https://fab9-125-99-215-59.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri);
 
-      // Add headers to match Postman
       request.headers['Content-Type'] = 'multipart/form-data';
       request.headers['Accept'] = 'application/json';
 
-      // Preprocess images to ensure quality and format
       final aadhaarFile = await _preprocessImage(_aadhaarImage!);
       final liveFile = await _preprocessImage(_liveImage!);
 
-      // Verify file integrity
       if (!await aadhaarFile.exists() || !await liveFile.exists()) {
         throw Exception('Preprocessed image files are missing');
       }
@@ -165,7 +159,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
       request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
 
-      // Send request with timeout
       final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -214,15 +207,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_formKey.currentState!.validate() && _matchedAge != null && _liveImage != null) {
       setState(() => _isRegistering = true);
       try {
+        final imageFile = File(_liveImage!.path);
+        final bytes = await imageFile.readAsBytes();
+        final imageUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
         final user = UserModel(
           id: const Uuid().v4(),
           name: _nameController.text,
           email: _emailController.text,
           password: _passwordController.text,
           age: _matchedAge,
+          imageUrl: imageUrl,
         );
-        final image = await _preprocessImage(_liveImage!); // Preprocess live image for Firebase
-        await FirebaseService().registerUser(user, image);
+
+        await FirebaseService().registerUser(user, imageFile);
         Provider.of<UserProvider>(context, listen: false).setUser(user);
         Navigator.pushReplacement(
           context,
