@@ -15,7 +15,7 @@ import '../model/user_model.dart';
 import '../providers/user_provider.dart';
 import '../utils/helpers.dart';
 import 'home_screen.dart';
-
+ 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
