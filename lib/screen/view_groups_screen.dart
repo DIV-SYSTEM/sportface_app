@@ -58,7 +58,7 @@ class _ViewGroupsScreenState extends State<ViewGroupsScreen> {
             onPressed: () {
               setState(() {
                 final index =
-                groupData.indexWhere((g) => g.groupId == group.groupId);
+                    groupData.indexWhere((g) => g.groupId == group.groupId);
                 groupData[index] = GroupModel(
                   groupId: group.groupId,
                   eventId: group.eventId,
@@ -92,8 +92,8 @@ class _ViewGroupsScreenState extends State<ViewGroupsScreen> {
     }).toList();
     final organiserRequests = pendingRequests
         .where((req) => groupData.any((g) =>
-    g.groupId == req.groupId &&
-        g.organiserName.toLowerCase() == widget.currentUser.toLowerCase()))
+            g.groupId == req.groupId &&
+            g.organiserName.toLowerCase() == widget.currentUser.toLowerCase()))
         .toList();
     print(
         "User: ${widget.currentUser}, Groups: ${userGroups.length}, Requests: ${organiserRequests.length}");
@@ -114,75 +114,75 @@ class _ViewGroupsScreenState extends State<ViewGroupsScreen> {
               userGroups.isEmpty
                   ? const Center(child: Text("No groups joined yet."))
                   : ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: userGroups.length,
-                itemBuilder: (context, index) {
-                  final group = userGroups[index];
-                  final event = companionData.firstWhere(
-                        (e) => e.id == group.eventId,
-                    orElse: () => CompanionModel(
-                      id: group.eventId,
-                      sportName: "Unknown",
-                      logoPath: "assets/images/default.jpg",
-                      organiserName: group.organiserName,
-                      venue: "Unknown",
-                      city: "Unknown",
-                      description: "Event not found",
-                      date: "Unknown",
-                      time: "Unknown",
-                      gender: "All",
-                      ageLimit: "18-25",
-                      paidStatus: "Unpaid",
-                      food: "Not Included",
-                      travel: "Own Vehicle",
-                    ),
-                  );
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.group, color: Colors.blue),
-                            title: Text(
-                              group.groupName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            trailing: group.organiserName.toLowerCase() ==
-                                widget.currentUser.toLowerCase()
-                                ? IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _editGroupName(group),
-                            )
-                                : null,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: userGroups.length,
+                      itemBuilder: (context, index) {
+                        final group = userGroups[index];
+                        final event = companionData.firstWhere(
+                          (e) => e.id == group.eventId,
+                          orElse: () => CompanionModel(
+                            id: group.eventId,
+                            sportName: "Unknown",
+                            logoPath: "assets/images/default.jpg",
+                            organiserName: group.organiserName,
+                            venue: "Unknown",
+                            city: "Unknown",
+                            description: "Event not found",
+                            date: "Unknown",
+                            time: "Unknown",
+                            gender: "Any",
+                            ageLimit: "18-30",
+                            paidStatus: "Unpaid",
+                            latitude: 0.0,
+                            longitude: 0.0,
                           ),
-                          CompanionCard(
-                            data: event,
-                            currentUser: widget.currentUser,
-                            onReadMorePressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ChatScreen(
-                                    groupId: group.groupId,
-                                    currentUser: widget.currentUser,
+                        );
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.group, color: Colors.blue),
+                                  title: Text(
+                                    group.groupName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
+                                  trailing: group.organiserName.toLowerCase() ==
+                                          widget.currentUser.toLowerCase()
+                                      ? IconButton(
+                                          icon: const Icon(Icons.edit),
+                                          onPressed: () => _editGroupName(group),
+                                        )
+                                      : null,
                                 ),
-                              );
-                            },
+                                CompanionCard(
+                                  data: event,
+                                  currentUser: widget.currentUser,
+                                  onReadMorePressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ChatScreen(
+                                          groupId: group.groupId,
+                                          currentUser: widget.currentUser,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
               const SizedBox(height: 20),
               if (organiserRequests.isNotEmpty) ...[
                 const Text(
