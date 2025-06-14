@@ -33,7 +33,7 @@ class HomeScreen extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: CircularAvatar(imageUrl: user?.imageUrl),
+              child: CircularAvatar(imageUrl: user?.imageUrl, userId: user?.id),
             ),
           ),
         ],
