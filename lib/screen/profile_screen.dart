@@ -18,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            CircularAvatar(imageUrl: user?.imageUrl, radius: 50),
+            CircularAvatar(imageUrl: user?.imageUrl, radius: 50, userId: user?.id),
             const SizedBox(height: 16),
             Text('Name: ${user?.name ?? "N/A"}'),
             const SizedBox(height: 8),
