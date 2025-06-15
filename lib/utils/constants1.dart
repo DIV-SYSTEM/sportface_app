@@ -32,16 +32,23 @@ class Constants {
 
   // Sports list for autocomplete
   static const List<String> sports = [
-    'Dal Pakwan',
-    'Chole-Bhature',
-    'Sandwich',
+    'Food and Beverage',
+    'Drinks and Juice',
+    'Snacks',
+    'Lunch',
+    'Dinner',
+    'Breakfast',
   
   ];
   static const Map<String, String> sportIons = {
-    'Dal Pakwan': 'assets/images/sport_icons/cricket.png',
-    'Chole-Bhature': 'assets/images/sport_icons/football.png',
-    'Sandwich': 'assets/images/sport_icons/basketball.png',
-    'Tennis': 'assets/images/sport_icons/tennis.png',
+    'Food and Beverage': 'assets/images/sport_icons/cricket.png',
+    'Drinks and Juice': 'assets/images/sport_icons/football.png',
+    'Snacks': 'assets/images/sport_icons/basketball.png',
+    'Lunch': 'assets/images/sport_icons/tennis.png',
+    'Dinner': 'assets/images/sport_icons/tennis.png',
+    'Breakfast': 'assets/images/sport_icons/tennis.png',
+
+
   };
 
   static const List<String> ageRanges = ['Under 18', '18-30', '30-45', '45+'];
