@@ -133,93 +133,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _matchImages() async {
-    if (_aadhaarImage == null || _liveImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload both images')),
-      );
-      return;
+  if (_aadhaarImage == null || _liveImage == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please upload both images')),
+    );
+    return;
+  }
+
+  setState(() => _isMatching = true);
+
+  try {
+    final uri = Uri.parse('https://9235-116-72-199-8.ngrok-free.app/api/verify/');
+    final request = http.MultipartRequest('POST', uri);
+
+    request.headers['Content-Type'] = 'multipart/form-data';
+    request.headers['Accept'] = 'application/json';
+
+    final aadhaarFile = await _preprocessImage(_aadhaarImage!);
+    final liveFile = await _preprocessImage(_liveImage!);
+
+    if (!await aadhaarFile.exists() || !await liveFile.exists()) {
+      throw Exception('Preprocessed image files are missing');
     }
 
-    setState(() => _isMatching = true);
+    request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
+    request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
+
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (kDebugMode) {
+      print('API response: ${response.statusCode}, body: ${response.body}');
+    }
+
+    Map<String, dynamic> data = {};
 
     try {
-      final uri = Uri.parse('https://9235-116-72-199-8.ngrok-free.app/api/verify/');
-      final request = http.MultipartRequest('POST', uri);
-
-      request.headers['Content-Type'] = 'multipart/form-data';
-      request.headers['Accept'] = 'application/json';
-
-      final aadhaarFile = await _preprocessImage(_aadhaarImage!);
-      final liveFile = await _preprocessImage(_liveImage!);
-
-      if (!await aadhaarFile.exists() || !await liveFile.exists()) {
-        throw Exception('Preprocessed image files are missing');
-      }
-
-      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
-      request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
-
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (kDebugMode) {
-        print('API response: ${response.statusCode}, body: ${response.body}');
-      }
-
-      // Initialize data as a non-nullable empty map
-      Map<String, dynamic> data = {};
-
-      // Try to parse the response body
-      try {
-        data = jsonDecode(response.body) as Map<String, dynamic>;
-      } catch (e) {
-        if (kDebugMode) {
-          print('Failed to parse JSON: $e, body: ${response.body}');
-        }
-        // Fallback for non-JSON responses
-        data = {'verified': false, 'message': 'Server returned invalid response'};
-      }
-
-      if (data['verified'] == true) {
-        setState(() {
-          _dob = data['dob'] as String?;
-          _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched! Age: ${_matchedAge ?? 'Unknown'}')),
-        );
-      } else {
-        // Show AlertDialog for both 200 and non-200 status codes with a message
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Verification Failed'),
-            content: Text(data['message']?.toString() ?? 'Unknown error'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-            ],
-          ),
-        );
-      }
+      data = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (e) {
       if (kDebugMode) {
-        print('Error in _matchImages: $e');
+        print('Failed to parse JSON: $e, body: ${response.body}');
       }
-      // Show AlertDialog instead of SnackBar for all errors
+      data = {'verified': false, 'message': 'Server returned invalid response'};
+    }
+
+    if (data['verified'] == true) {
+      setState(() {
+        _dob = data['dob'] as String?;
+        _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
+      });
+
+      // 🔄 Modified: Show age and dob together
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Face matched!\nAge: ${_matchedAge ?? 'Unknown'}, DOB: $_dob')), // 🔄
+      );
+    } else {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('Failed to verify images: ${e.toString()}'),
+          title: const Text('Verification Failed'),
+          content: Text(data['message']?.toString() ?? 'Unknown error'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
           ],
         ),
       );
     }
-
-    setState(() => _isMatching = false);
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error in _matchImages: $e');
+    }
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text('Failed to verify images: ${e.toString()}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
+    );
   }
+
+  setState(() => _isMatching = false);
+}
+
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate() && _matchedAge != null && _liveImage != null) {
