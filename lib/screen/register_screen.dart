@@ -113,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     setState(() => _isMatching = true);
 
     try {
-      final uri = Uri.parse('https://f63f-116-74-47-246.ngrok-free.app/api/verify/');
+      final uri = Uri.parse('https://9235-116-72-199-8.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri)
         ..headers['Content-Type'] = 'multipart/form-data'
         ..headers['Accept'] = 'application/json'
