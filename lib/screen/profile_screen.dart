@@ -25,6 +25,20 @@ class ProfileScreen extends StatelessWidget {
             Text('Email: ${user?.email ?? "N/A"}'),
             const SizedBox(height: 8),
             Text('Age: ${user?.age?.toString() ?? "N/A"}'),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Verified '),
+                Text(
+                  '✅️',
+                  style: TextStyle(
+                    color: const Color(0xFF1DA1F2), // Twitter/X blue
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             CustomButton(
               text: 'Logout',
