@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../data/companion_data.dart';
 import '../widgets/companion_card.dart';
+import '../widgets/circular_avatar.dart';
 import '../model/companion_model.dart';
+import '../providers/user_provider.dart';
 import 'create_requirement_form.dart';
 import 'view_groups_screen.dart';
+import 'profile_screen.dart';
 import '../services/location_filter_service.dart';
 
 class Home_Sport extends StatefulWidget {
@@ -210,10 +214,27 @@ class _Home_SportState extends State<Home_Sport> {
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context).user;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Find Sport Companions'),
         centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        actions: [
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CircularAvatar(imageUrl: user?.imageUrl, userId: user?.id),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12.0),
