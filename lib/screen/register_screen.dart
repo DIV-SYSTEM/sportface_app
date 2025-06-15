@@ -166,17 +166,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('API response: ${response.statusCode}, body: ${response.body}');
       }
 
-      // Initialize data as a non-nullable empty map
       Map<String, dynamic> data = {};
 
-      // Try to parse the response body
       try {
         data = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (e) {
         if (kDebugMode) {
           print('Failed to parse JSON: $e, body: ${response.body}');
         }
-        // Fallback for non-JSON responses
         data = {'verified': false, 'message': 'Server returned invalid response'};
       }
 
@@ -186,10 +183,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched! Age: ${_matchedAge ?? 'Unknown'}')),
+          SnackBar(content: Text('Face matched! DOB: ${_dob ?? 'Unknown'}, Age: ${_matchedAge ?? 'Unknown'}')),
         );
       } else {
-        // Show AlertDialog for both 200 and non-200 status codes with a message
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -205,7 +201,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (kDebugMode) {
         print('Error in _matchImages: $e');
       }
-      // Show AlertDialog instead of SnackBar for all errors
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -261,7 +256,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(Context context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Register')),
       body: SingleChildScrollView(
