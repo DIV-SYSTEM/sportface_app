@@ -63,16 +63,14 @@ class _Home_SportState extends State<Home_Sport> {
 
   Future<void> _applyFilter() async {
     setState(() {
-      filteredData = companionData; // Reset to all data initially
+      filteredData = companionData;
     });
 
-    // Apply distance filter
     final distanceFilteredData = await _locationService.filterByDistance(distanceFilterKm);
 
     setState(() {
       filteredData = distanceFilteredData.where((item) {
-        final matchesCity =
-            distanceFilterKm == 0 ? (selectedCity == null || item.city == selectedCity) : true;
+        final matchesCity = distanceFilterKm == 0 ? (selectedCity == null || item.city == selectedCity) : true;
         final matchesSport = selectedSport == null || item.sportName == selectedSport;
         final matchesDate = selectedDate == null || item.date == dateController.text;
         final matchesGender = selectedGender == null || item.gender == selectedGender;
@@ -208,7 +206,6 @@ class _Home_SportState extends State<Home_Sport> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserProvider>(context).user;
-    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -357,10 +354,7 @@ class _Home_SportState extends State<Home_Sport> {
                             SizedBox(width: 4),
                             Text(
                               "Create Requirement",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                             ),
                           ],
                         ),
@@ -403,10 +397,7 @@ class _Home_SportState extends State<Home_Sport> {
                             SizedBox(width: 4),
                             Text(
                               "View Group",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                             ),
                           ],
                         ),
@@ -589,7 +580,7 @@ class _Home_SportState extends State<Home_Sport> {
                         currentUser: currentUser,
                         onReadMorePressed: () {},
                       ),
-                    ),
+                    );
                   },
                 ),
             ],
