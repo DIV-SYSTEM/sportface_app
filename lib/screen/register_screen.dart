@@ -1,3 +1,4 @@
+// register_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -20,10 +21,10 @@ class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -35,11 +36,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _dob;
   int? _matchedAge;
 
+  late AnimationController _animationController;
+  late Animation<double> _scanAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _scanAnimation = Tween<double>(begin: 0.1, end: 0.9).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -47,15 +65,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final parts = dob.split('/');
       if (parts.length == 3) {
-        final day = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final year = int.parse(parts[2]);
-        final birthDate = DateTime(year, month, day);
+        final birthDate = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
         final now = DateTime.now();
         int age = now.year - birthDate.year;
-        if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) {
-          age--;
-        }
+        if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) age--;
         return age;
       }
     } catch (_) {}
@@ -66,156 +79,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final status = kIsWeb ? PermissionStatus.granted : await Permission.photos.request();
     if (status.isGranted) {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 100,
-        maxWidth: 1920,
-        maxHeight: 1080,
-      );
-      if (pickedFile != null) {
-        setState(() => _aadhaarImage = pickedFile);
-        if (kDebugMode) {
-          print('Aadhaar image selected: ${pickedFile.path}, size: ${await File(pickedFile.path).length()} bytes');
-        }
-      }
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100, maxWidth: 1920, maxHeight: 1080);
+      if (pickedFile != null) setState(() => _aadhaarImage = pickedFile);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gallery permission denied')),
-      );
+      _showSnack('Gallery permission denied');
     }
   }
 
   Future<void> _pickLiveImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
-      imageQuality: 100,
-      maxWidth: 1920,
-      maxHeight: 1080,
-    );
+    final pickedFile = await picker.pickImage(source: kIsWeb ? ImageSource.gallery : ImageSource.camera, imageQuality: 100, maxWidth: 1920, maxHeight: 1080);
     if (pickedFile != null) {
       setState(() => _liveImage = pickedFile);
-      if (kDebugMode) {
-        print('Live image selected: ${pickedFile.path}, size: ${await File(pickedFile.path).length()} bytes');
-      }
     } else if (!kIsWeb) {
       final status = await Permission.camera.request();
-      if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission denied')),
-        );
-      }
+      if (!status.isGranted) _showSnack('Camera permission denied');
     }
   }
 
   Future<File> _preprocessImage(XFile imageFile) async {
     final file = File(imageFile.path);
-    if (!await file.exists()) {
-      throw Exception('Image file does not exist: ${imageFile.path}');
-    }
-
     final imageBytes = await file.readAsBytes();
     img.Image? image = img.decodeImage(imageBytes);
-    if (image == null) {
-      throw Exception('Failed to decode image: ${imageFile.path}');
-    }
-
-    image = img.bakeOrientation(image);
-
-    final tempDir = Directory.systemTemp;
-    final tempFile = File('${tempDir.path}/${imageFile.name}.jpg');
+    image = img.bakeOrientation(image!);
+    final tempFile = File('${Directory.systemTemp.path}/${imageFile.name}.jpg');
     await tempFile.writeAsBytes(img.encodeJpg(image, quality: 100));
-
-    if (kDebugMode) {
-      print('Preprocessed image saved: ${tempFile.path}, size: ${await tempFile.length()} bytes');
-    }
     return tempFile;
   }
 
   Future<void> _matchImages() async {
-    if (_aadhaarImage == null || _liveImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload both images')),
-      );
-      return;
-    }
+    if (_aadhaarImage == null || _liveImage == null) return _showSnack('Please upload both images');
 
     setState(() => _isMatching = true);
 
     try {
       final uri = Uri.parse('https://f63f-116-74-47-246.ngrok-free.app/api/verify/');
-      final request = http.MultipartRequest('POST', uri);
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Content-Type'] = 'multipart/form-data'
+        ..headers['Accept'] = 'application/json'
+        ..files.add(await http.MultipartFile.fromPath('aadhaar_image', (await _preprocessImage(_aadhaarImage!)).path))
+        ..files.add(await http.MultipartFile.fromPath('selfie_image', (await _preprocessImage(_liveImage!)).path));
 
-      request.headers['Content-Type'] = 'multipart/form-data';
-      request.headers['Accept'] = 'application/json';
+      final response = await http.Response.fromStream(await request.send());
 
-      final aadhaarFile = await _preprocessImage(_aadhaarImage!);
-      final liveFile = await _preprocessImage(_liveImage!);
-
-      if (!await aadhaarFile.exists() || !await liveFile.exists()) {
-        throw Exception('Preprocessed image files are missing');
-      }
-
-      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
-      request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
-
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (kDebugMode) {
-        print('API response: ${response.statusCode}, body: ${response.body}');
-      }
-
-      // Initialize data as a non-nullable empty map
-      Map<String, dynamic> data = {};
-
-      // Try to parse the response body
-      try {
-        data = jsonDecode(response.body) as Map<String, dynamic>;
-      } catch (e) {
-        if (kDebugMode) {
-          print('Failed to parse JSON: $e, body: ${response.body}');
-        }
-        // Fallback for non-JSON responses
-        data = {'verified': false, 'message': 'Server returned invalid response'};
-      }
-
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (data['verified'] == true) {
-        setState(() {
-          _dob = data['dob'] as String?;
-          _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched! Age: ${_matchedAge ?? 'Unknown'}')),
-        );
+        _dob = data['dob'] as String?;
+        _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
+        _showSnack('Face matched! Age: $_matchedAge');
       } else {
-        // Show AlertDialog for both 200 and non-200 status codes with a message
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Verification Failed'),
-            content: Text(data['message']?.toString() ?? 'Unknown error'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-            ],
-          ),
-        );
+        _showDialog('Verification Failed', data['message'] ?? 'Unknown error');
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error in _matchImages: $e');
-      }
-      // Show AlertDialog instead of SnackBar for all errors
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('Failed to verify images: ${e.toString()}'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-          ],
-        ),
-      );
+      _showDialog('Error', e.toString());
     }
 
     setState(() => _isMatching = false);
@@ -226,8 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _isRegistering = true);
       try {
         final imageFile = File(_liveImage!.path);
-        final bytes = await imageFile.readAsBytes();
-        final imageUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        final imageUrl = 'data:image/jpeg;base64,${base64Encode(await imageFile.readAsBytes())}';
 
         final user = UserModel(
           id: const Uuid().v4(),
@@ -240,24 +155,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         await FirebaseService().registerUser(user, imageFile);
         Provider.of<UserProvider>(context, listen: false).setUser(user);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
       } catch (e) {
-        if (kDebugMode) {
-          print('Error in _register: $e');
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        _showSnack('Error: $e');
       }
       setState(() => _isRegistering = false);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete form and match images first')),
-      );
+      _showSnack('Complete form and match images first');
     }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _showDialog(String title, String msg) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(msg),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
+  }
+
+  Widget _buildScanAnimation() {
+    return Container(
+      height: 150,
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.black12,
+      ),
+      child: Stack(
+        children: [
+          AnimatedBuilder(
+            animation: _scanAnimation,
+            builder: (_, __) => Positioned(
+              top: 150 * _scanAnimation.value,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 2,
+                color: Colors.blueAccent,
+              ),
+            ),
+          ),
+          const Center(child: Text('Scanning...', style: TextStyle(color: Colors.grey))),
+        ],
+      ),
+    );
   }
 
   @override
@@ -265,58 +215,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Register')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              CustomTextField(
-                label: 'Name',
-                controller: _nameController,
-                validator: Helpers.validateName,
-              ),
+              CustomTextField(label: 'Name', controller: _nameController, validator: Helpers.validateName),
               const SizedBox(height: 16),
-              CustomTextField(
-                label: 'Email',
-                controller: _emailController,
-                validator: Helpers.validateEmail,
-              ),
+              CustomTextField(label: 'Email', controller: _emailController, validator: Helpers.validateEmail),
               const SizedBox(height: 16),
-              CustomTextField(
-                label: 'Password',
-                controller: _passwordController,
-                obscureText: true,
-                validator: Helpers.validatePassword,
-              ),
+              CustomTextField(label: 'Password', controller: _passwordController, obscureText: true, validator: Helpers.validatePassword),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  CustomButton(
-                    text: 'Upload Aadhaar/PAN',
-                    onPressed: _pickAadhaarImage,
-                  ),
-                  CustomButton(
-                    text: 'Capture Live Photo',
-                    onPressed: _pickLiveImage,
-                  ),
+                  CustomButton(text: 'Upload Aadhaar/PAN', onPressed: _pickAadhaarImage),
+                  CustomButton(text: 'Capture Live Photo', onPressed: _pickLiveImage),
                 ],
               ),
               const SizedBox(height: 16),
               if (_aadhaarImage != null) const Text('Aadhaar/PAN Image Selected'),
               if (_liveImage != null) const Text('Live Photo Selected'),
               const SizedBox(height: 16),
-              CustomButton(
-                text: 'Match Images',
-                onPressed: _matchImages,
-                isLoading: _isMatching,
-              ),
+              if (_isMatching) _buildScanAnimation(),
+              CustomButton(text: 'Match Images', onPressed: _matchImages, isLoading: _isMatching),
               const SizedBox(height: 16),
-              CustomButton(
-                text: 'Register',
-                onPressed: _register,
-                isLoading: _isRegistering,
-              ),
+              CustomButton(text: 'Register', onPressed: _register, isLoading: _isRegistering),
               const SizedBox(height: 16),
               CustomButton(
                 text: 'Skip to HomeScreen',
@@ -329,10 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     age: 35,
                   );
                   Provider.of<UserProvider>(context, listen: false).setUser(user);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
                 },
               ),
             ],
