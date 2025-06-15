@@ -77,15 +77,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Text(
                           "Welcome",
-                          style: textTheme.headline5?.copyWith(
+                          style: textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: 28,
                             color: Colors.deepPurple,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           "Join Companion Connect",
-                          style: textTheme.subtitle1?.copyWith(
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontSize: 16,
                             color: Colors.grey[700],
                           ),
                         ),
@@ -98,39 +100,45 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     validator: Helpers.validateEmail,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   CustomTextField(
                     label: 'Password',
                     controller: _passwordController,
                     obscureText: true,
                     validator: Helpers.validatePassword,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
                   CustomButton(
                     text: 'Login',
                     onPressed: _login,
                     isLoading: _isLoading,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
                         "New user? ",
-                        style: TextStyle(color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterScreen(),
+                            ),
                           );
                         },
                         child: const Text(
                           "Register the account",
                           style: TextStyle(
-                            color: Colors.deepPurple,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: Colors.deepPurple,
                           ),
                         ),
                       ),
