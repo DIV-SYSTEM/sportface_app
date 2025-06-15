@@ -26,7 +26,7 @@ class _Home_SportState extends State<Home_Sport> {
   String? selectedAgeLimit;
   String? selectedPaidStatus;
   DateTime? selectedDate;
-  double distanceFilterKm = 0;
+  String? selectedDistance; // Changed from double to String for dropdown
   late String currentUser;
 
   List<CompanionModel> filteredData = companionData;
@@ -35,9 +35,8 @@ class _Home_SportState extends State<Home_Sport> {
   final TextEditingController dateController = TextEditingController();
   final TextEditingController newUserController = TextEditingController();
 
-  final List<String> allCities = {
-    ...companionData.map((e) => e.city),
-  }.toList();
+  final List<String> allCities = {...companionData.map((e) => e.city)}.toList();
+  final List<String> distanceOptions = ['0', '5', '10', '25', '50', '100'];
 
   @override
   void initState() {
@@ -69,32 +68,23 @@ class _Home_SportState extends State<Home_Sport> {
     });
 
     // Apply distance filter
-    final distanceFilteredData = await _locationService.filterByDistance(distanceFilterKm);
+    final distanceKm = selectedDistance != null ? double.parse(selectedDistance!) : 0.0;
+    final distanceFilteredData = await _locationService.filterByDistance(distanceKm);
 
     setState(() {
       filteredData = distanceFilteredData.where((item) {
         final matchesCity =
-            distanceFilterKm == 0 ? (selectedCity == null || item.city == selectedCity) : true;
-        final matchesSport =
-            selectedSport == null || item.sportName == selectedSport;
-        final matchesDate =
-            selectedDate == null || item.date == dateController.text;
-        final matchesGender =
-            selectedGender == null || item.gender == selectedGender;
-        final matchesAge =
-            selectedAgeLimit == null || item.ageLimit == selectedAgeLimit;
-        final matchesPaid =
-            selectedPaidStatus == null || item.paidStatus == selectedPaidStatus;
+            distanceKm == 0 ? (selectedCity == null || item.city == selectedCity) : true;
+        final matchesSport = selectedSport == null || item.sportName == selectedSport;
+        final matchesDate = selectedDate == null || item.date == dateController.text;
+        final matchesGender = selectedGender == null || item.gender == selectedGender;
+        final matchesAge = selectedAgeLimit == null || item.ageLimit == selectedAgeLimit;
+        final matchesPaid = selectedPaidStatus == null || item.paidStatus == selectedPaidStatus;
 
-        return matchesCity &&
-            matchesSport &&
-            matchesDate &&
-            matchesGender &&
-            matchesAge &&
-            matchesPaid;
+        return matchesCity && matchesSport && matchesDate && matchesGender && matchesAge && matchesPaid;
       }).toList();
 
-      if (distanceFilterKm > 0) {
+      if (distanceKm > 0) {
         final userLocation = _locationService.getUserLocation();
         userLocation.then((location) {
           if (location == null) {
@@ -115,7 +105,7 @@ class _Home_SportState extends State<Home_Sport> {
       selectedGender = null;
       selectedAgeLimit = null;
       selectedPaidStatus = null;
-      distanceFilterKm = 0;
+      selectedDistance = null;
       dateController.clear();
       filteredData = companionData;
     });
@@ -162,8 +152,7 @@ class _Home_SportState extends State<Home_Sport> {
                 );
                 return;
               }
-              if (availableUsers
-                  .any((user) => user.toLowerCase() == newUser.toLowerCase())) {
+              if (availableUsers.any((user) => user.toLowerCase() == newUser.toLowerCase())) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("User name already exists")),
                 );
@@ -196,18 +185,39 @@ class _Home_SportState extends State<Home_Sport> {
     }
   }
 
-  Widget _buildDropdown(String label, String? value, List<String> options,
-      Function(String?) onChanged) {
+  Widget _buildDropdown(String label, String? value, List<String> options, Function(String?) onChanged) {
     return SizedBox(
-      width: 160,
+      width: 140,
       child: DropdownButtonFormField<String>(
         value: value,
-        items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
+        items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt, style: const TextStyle(fontSize: 14)))).toList(),
         onChanged: onChanged,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         ),
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
+      ),
+    );
+  }
+
+  Widget _buildDateField() {
+    return SizedBox(
+      width: 140,
+      child: TextField(
+        controller: dateController,
+        readOnly: true,
+        decoration: InputDecoration(
+          labelText: "Date",
+          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          prefixIcon: const Icon(Icons.calendar_today, size: 18),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        ),
+        onTap: _pickDate,
+        style: const TextStyle(fontSize: 14),
       ),
     );
   }
@@ -215,12 +225,17 @@ class _Home_SportState extends State<Home_Sport> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserProvider>(context).user;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Find Sport Companions'),
+        title: const Text(
+          'Find Sport Companions',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: const Color(0xFF6A1B9A),
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
@@ -236,233 +251,379 @@ class _Home_SportState extends State<Home_Sport> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: _createUser,
-                    icon: const Icon(Icons.person_add, size: 20),
-                    label: const Text("Create User"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: _createUser,
+                      borderRadius: BorderRadius.circular(10),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1976D2),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.person_add, size: 18, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text(
+                              "Create User",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      textStyle: const TextStyle(fontSize: 14),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 3,
-                  child: DropdownButtonFormField<String>(
-                    value: currentUser,
-                    items: availableUsers.map((user) {
-                      return DropdownMenuItem(
-                        value: user,
-                        child: Text(user, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
-                      );
-                    }).toList(),
-                    onChanged: _switchUser,
-                    isDense: true,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: "User",
-                      prefixIcon: const Icon(Icons.person, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      value: currentUser,
+                      items: availableUsers
+                          .map((user) => DropdownMenuItem(
+                                value: user,
+                                child: Text(
+                                  user,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: _switchUser,
+                      isDense: true,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: "User",
+                        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        prefixIcon: const Icon(Icons.person, size: 18),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                      ),
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CreateRequirementForm(
-                            currentUser: currentUser,
-                            onCreate: (CompanionModel newCompanion, GroupModel newGroup) {
-                              setState(() {
-                                companionData.add(newCompanion);
-                                groupData.add(newGroup);
-                                filteredData = companionData;
-                                print("Added to groupData: ${newGroup.groupId}, Name: ${newGroup.groupName}, Organiser: ${newGroup.organiserName}");
-                                logGroupData("After adding group in home");
-                              });
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text("Create Requirement"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ViewGroupsScreen(
-                            key: UniqueKey(),
-                            currentUser: currentUser,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.group),
-                    label: const Text("View Group"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.blueGrey,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: _resetData,
-              icon: const Icon(Icons.refresh),
-              label: const Text("Reset Data"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildDropdown("City", selectedCity, allCities, (val) => setState(() => selectedCity = val)),
-                _buildDropdown("Sport", selectedSport, ["Football", "Cricket", "Badminton", "Chess", "Carrom", "PUBG"], (val) => setState(() => selectedSport = val)),
-                _buildDropdown("Gender", selectedGender, ["All", "Male", "Female"], (val) => setState(() => selectedGender = val)),
-                _buildDropdown("Age Limit", selectedAgeLimit, ["18-25", "26-33", "34-40", "40+"], (val) => setState(() => selectedAgeLimit = val)),
-                _buildDropdown("Type", selectedPaidStatus, ["Paid", "Unpaid"], (val) => setState(() => selectedPaidStatus = val)),
-                SizedBox(
-                  width: 160,
-                  child: TextField(
-                    controller: dateController,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      labelText: "Date",
-                      prefixIcon: Icon(Icons.calendar_today),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onTap: _pickDate,
-                  ),
-                ),
-                SizedBox(
-                  width: 200,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Distance: ${distanceFilterKm.toStringAsFixed(0)} km",
-                        style: const TextStyle(fontSize: 14),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CreateRequirementForm(
+                              currentUser: currentUser,
+                              onCreate: (CompanionModel newCompanion, GroupModel newGroup) {
+                                setState(() {
+                                  companionData.add(newCompanion);
+                                  groupData.add(newGroup);
+                                  filteredData = companionData;
+                                  print(
+                                      "Added to groupData: ${newGroup.groupId}, Name: ${newGroup.groupName}, Organiser: ${newGroup.organiserName}");
+                                  logGroupData("After adding group in home");
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6A1B9A),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.add, size: 18, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text(
+                              "Create Requirement",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      Slider(
-                        value: distanceFilterKm,
-                        min: 0,
-                        max: 100,
-                        divisions: 100,
-                        label: "${distanceFilterKm.toStringAsFixed(0)} km",
-                        onChanged: (value) {
-                          setState(() {
-                            distanceFilterKm = value;
-                          });
-                        },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ViewGroupsScreen(
+                              key: UniqueKey(),
+                              currentUser: currentUser,
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF455A64),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.group, size: 18, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text(
+                              "View Group",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _resetData,
+                borderRadius: BorderRadius.circular(10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD32F2F),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.refresh, size: 18, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text(
+                        "Reset Data",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.filter_alt, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _applyFilter,
-                    child: const Text("Apply Filter"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _resetFilter,
-                    child: const Text("Reset Filter"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (filteredData.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Text("No companions match your filters."),
-                ),
-              )
-            else
-              ListView.builder(
-                itemCount: filteredData.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final companion = filteredData[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6.0),
-                    child: CompanionCard(
-                      data: companion,
-                      currentUser: currentUser,
-                      onReadMorePressed: () {},
-                    ),
-                  );
-                },
               ),
-          ],
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Filter Companions",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildDropdown("City", selectedCity, allCities, (val) => setState(() => selectedCity = val)),
+                          const SizedBox(width: 8),
+                          _buildDropdown(
+                              "Sport",
+                              selectedSport,
+                              ["Football", "Cricket", "Badminton", "Chess", "Carrom", "PUBG"],
+                              (val) => setState(() => selectedSport = val)),
+                          const SizedBox(width: 8),
+                          _buildDropdown("Gender", selectedGender, ["All", "Male", "Female"],
+                              (val) => setState(() => selectedGender = val)),
+                          const SizedBox(width: 8),
+                          _buildDropdown("Age Limit", selectedAgeLimit, ["18-25", "26-33", "34-40", "40+"],
+                              (val) => setState(() => selectedAgeLimit = val)),
+                          const SizedBox(width: 8),
+                          _buildDropdown("Type", selectedPaidStatus, ["Paid", "Unpaid"],
+                              (val) => setState(() => selectedPaidStatus = val)),
+                          const SizedBox(width: 8),
+                          _buildDateField(),
+                          const SizedBox(width: 8),
+                          _buildDropdown("Distance (km)", selectedDistance, distanceOptions,
+                              (val) => setState(() => selectedDistance = val)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: _applyFilter,
+                            borderRadius: BorderRadius.circular(10),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1976D2),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  "Apply Filter",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: _resetFilter,
+                            borderRadius: BorderRadius.circular(10),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD32F2F),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  "Reset Filter",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (filteredData.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Text(
+                      "No companions match your filters.",
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  itemCount: filteredData.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final companion = filteredData[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                      child: CompanionCard(
+                        data: companion,
+                        currentUser: currentUser,
+                        onReadMorePressed: () {},
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
