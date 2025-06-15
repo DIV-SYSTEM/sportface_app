@@ -341,7 +341,7 @@ class _Home_FoodState extends State<Home_Food> {
               runSpacing: 8,
               children: [
                 _buildDropdown("City", selectedCity, allCities, (val) => setState(() => selectedCity = val)),
-                _buildDropdown("Food", selectedSport, ["Dal Pakwan", "Chole-Bhature", "Sandwich", "Burger", "Biryani", "Poha"], (val) => setState(() => selectedSport = val)),
+                _buildDropdown("Food", selectedSport, ["Food and Beverage", "Drinks and Juice", "Snacks", "Lunch", "Dinner", "Breakfast"], (val) => setState(() => selectedSport = val)),
                 _buildDropdown("Gender", selectedGender, ["All", "Male", "Female"], (val) => setState(() => selectedGender = val)),
                 _buildDropdown("Age Limit", selectedAgeLimit, ["18-25", "26-33", "34-40", "40+"], (val) => setState(() => selectedAgeLimit = val)),
                 _buildDropdown("Type", selectedPaidStatus, ["Paid", "Unpaid"], (val) => setState(() => selectedPaidStatus = val)),
