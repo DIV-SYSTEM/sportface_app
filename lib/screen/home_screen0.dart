@@ -26,7 +26,7 @@ class _Home_SportState extends State<Home_Sport> {
   String? selectedAgeLimit;
   String? selectedPaidStatus;
   DateTime? selectedDate;
-  String? selectedDistance; // Changed from double to String for dropdown
+  double distanceFilterKm = 0;
   late String currentUser;
 
   List<CompanionModel> filteredData = companionData;
@@ -36,7 +36,6 @@ class _Home_SportState extends State<Home_Sport> {
   final TextEditingController newUserController = TextEditingController();
 
   final List<String> allCities = {...companionData.map((e) => e.city)}.toList();
-  final List<String> distanceOptions = ['0', '5', '10', '25', '50', '100'];
 
   @override
   void initState() {
@@ -68,13 +67,12 @@ class _Home_SportState extends State<Home_Sport> {
     });
 
     // Apply distance filter
-    final distanceKm = selectedDistance != null ? double.parse(selectedDistance!) : 0.0;
-    final distanceFilteredData = await _locationService.filterByDistance(distanceKm);
+    final distanceFilteredData = await _locationService.filterByDistance(distanceFilterKm);
 
     setState(() {
       filteredData = distanceFilteredData.where((item) {
         final matchesCity =
-            distanceKm == 0 ? (selectedCity == null || item.city == selectedCity) : true;
+            distanceFilterKm == 0 ? (selectedCity == null || item.city == selectedCity) : true;
         final matchesSport = selectedSport == null || item.sportName == selectedSport;
         final matchesDate = selectedDate == null || item.date == dateController.text;
         final matchesGender = selectedGender == null || item.gender == selectedGender;
@@ -84,7 +82,7 @@ class _Home_SportState extends State<Home_Sport> {
         return matchesCity && matchesSport && matchesDate && matchesGender && matchesAge && matchesPaid;
       }).toList();
 
-      if (distanceKm > 0) {
+      if (distanceFilterKm > 0) {
         final userLocation = _locationService.getUserLocation();
         userLocation.then((location) {
           if (location == null) {
@@ -105,24 +103,9 @@ class _Home_SportState extends State<Home_Sport> {
       selectedGender = null;
       selectedAgeLimit = null;
       selectedPaidStatus = null;
-      selectedDistance = null;
+      distanceFilterKm = 0;
       dateController.clear();
       filteredData = companionData;
-    });
-  }
-
-  void _resetData() {
-    setState(() {
-      companionData.clear();
-      groupData.clear();
-      pendingRequests.clear();
-      groupMessages.clear();
-      availableUsers.clear();
-      availableUsers.addAll(["Demo User", "Sneha Roy", "Rahul Verma"]);
-      currentUser = "Demo User";
-      filteredData = companionData;
-      print("Cleared all data, reset users: $availableUsers");
-      logGroupData("After reset");
     });
   }
 
@@ -235,7 +218,7 @@ class _Home_SportState extends State<Home_Sport> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF6A1B9A),
+        backgroundColor: const Color(0xFF5E35B1),
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
@@ -357,7 +340,7 @@ class _Home_SportState extends State<Home_Sport> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6A1B9A),
+                          color: const Color(0xFF5E35B1),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
@@ -377,8 +360,7 @@ class _Home_SportState extends State<Home_Sport> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                                color: Colors.white),
                             ),
                           ],
                         ),
@@ -404,7 +386,7 @@ class _Home_SportState extends State<Home_Sport> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF455A64),
+                          color: const Color(0xFF546E7A),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
@@ -424,8 +406,7 @@ class _Home_SportState extends State<Home_Sport> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                                color: Colors.white),
                             ),
                           ],
                         ),
@@ -434,46 +415,11 @@ class _Home_SportState extends State<Home_Sport> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _resetData,
-                borderRadius: BorderRadius.circular(10),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD32F2F),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.refresh, size: 18, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        "Reset Data",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
+                  color: const Color(0xFFF5F7FA),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -517,9 +463,33 @@ class _Home_SportState extends State<Home_Sport> {
                               (val) => setState(() => selectedPaidStatus = val)),
                           const SizedBox(width: 8),
                           _buildDateField(),
-                          const SizedBox(width: 8),
-                          _buildDropdown("Distance (km)", selectedDistance, distanceOptions,
-                              (val) => setState(() => selectedDistance = val)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Distance: ${distanceFilterKm.toStringAsFixed(0)} km",
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                          ),
+                          Slider(
+                            value: distanceFilterKm,
+                            min: 0,
+                            max: 100,
+                            divisions: 100,
+                            label: "${distanceFilterKm.toStringAsFixed(0)} km",
+                            activeColor: const Color(0xFF1976D2),
+                            inactiveColor: Colors.grey[300],
+                            onChanged: (value) {
+                              setState(() {
+                                distanceFilterKm = value;
+                              });
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -566,7 +536,7 @@ class _Home_SportState extends State<Home_Sport> {
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFD32F2F),
+                                color: const Color(0xFFE53935),
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
@@ -619,7 +589,7 @@ class _Home_SportState extends State<Home_Sport> {
                         currentUser: currentUser,
                         onReadMorePressed: () {},
                       ),
-                    );
+                    ),
                   },
                 ),
             ],
