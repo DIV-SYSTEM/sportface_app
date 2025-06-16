@@ -154,8 +154,9 @@ class CompanionCard extends StatelessWidget {
                       ElevatedButton(
                         onPressed: () => _requestToJoin(context),
                         style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            foregroundColor: Colors.white,
+                        
                             borderRadius: BorderRadius.circular(12),
                           ),
                           backgroundColor: Colors.redAccent,
