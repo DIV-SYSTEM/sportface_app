@@ -150,7 +150,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                   }).toList(),
                   onChanged: (value) => setState(() => sportName = value),
                   decoration: const InputDecoration(
-                    labelText: "Food",
+                    labelText: "Destination",
                     prefixIcon: Icon(Icons.local_pizza),
                   ),
                   validator: Validators.validateSport,
