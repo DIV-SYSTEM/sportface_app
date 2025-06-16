@@ -15,7 +15,7 @@ import '../model/user_model.dart';
 import '../providers/user_provider.dart';
 import '../utils/helpers.dart';
 import 'home_screen.dart';
- 
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -133,91 +133,89 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _matchImages() async {
-  if (_aadhaarImage == null || _liveImage == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please upload both images')),
-    );
-    return;
-  }
-
-  setState(() => _isMatching = true);
-
-  try {
-    final uri = Uri.parse('https://9235-116-72-199-8.ngrok-free.app/api/verify/');
-    final request = http.MultipartRequest('POST', uri);
-
-    request.headers['Content-Type'] = 'multipart/form-data';
-    request.headers['Accept'] = 'application/json';
-
-    final aadhaarFile = await _preprocessImage(_aadhaarImage!);
-    final liveFile = await _preprocessImage(_liveImage!);
-
-    if (!await aadhaarFile.exists() || !await liveFile.exists()) {
-      throw Exception('Preprocessed image files are missing');
+    if (_aadhaarImage == null || _liveImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload both images')),
+      );
+      return;
     }
 
-    request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
-    request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
-
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (kDebugMode) {
-      print('API response: ${response.statusCode}, body: ${response.body}');
-    }
-
-    Map<String, dynamic> data = {};
+    setState(() => _isMatching = true);
 
     try {
-      data = jsonDecode(response.body) as Map<String, dynamic>;
+      final uri = Uri.parse('https://9235-116-72-199-8.ngrok-free.app/api/verify/');
+      final request = http.MultipartRequest('POST', uri);
+
+      request.headers['Content-Type'] = 'multipart/form-data';
+      request.headers['Accept'] = 'application/json';
+
+      final aadhaarFile = await _preprocessImage(_aadhaarImage!);
+      final liveFile = await _preprocessImage(_liveImage!);
+
+      if (!await aadhaarFile.exists() || !await liveFile.exists()) {
+        throw Exception('Preprocessed image files are missing');
+      }
+
+      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
+      request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print('API response: ${response.statusCode}, body: ${response.body}');
+      }
+
+      Map<String, dynamic> data = {};
+
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (e) {
+        if (kDebugMode) {
+          print('Failed to parse JSON: $e, body: ${response.body}');
+        }
+        data = {'verified': false, 'message': 'Server returned invalid response'};
+      }
+
+      if (data['verified'] == true) {
+        setState(() {
+          _dob = data['dob'] as String?;
+          _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Face matched!\nAge: ${_matchedAge ?? 'Unknown'}, DOB: $_dob')),
+        );
+      } else {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Verification Failed'),
+            content: Text(data['message']?.toString() ?? 'Unknown error'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to parse JSON: $e, body: ${response.body}');
+        print('Error in _matchImages: $e');
       }
-      data = {'verified': false, 'message': 'Server returned invalid response'};
-    }
-
-    if (data['verified'] == true) {
-      setState(() {
-        _dob = data['dob'] as String?;
-        _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
-      });
-
-      // 🔄 Modified: Show age and dob together
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Face matched!\nAge: ${_matchedAge ?? 'Unknown'}, DOB: $_dob')), // 🔄
-      );
-    } else {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Verification Failed'),
-          content: Text(data['message']?.toString() ?? 'Unknown error'),
+          title: const Text('Error'),
+          content: Text('Failed to verify images: ${e.toString()}'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
           ],
         ),
       );
     }
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error in _matchImages: $e');
-    }
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Error'),
-        content: Text('Failed to verify images: ${e.toString()}'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-        ],
-      ),
-    );
+
+    setState(() => _isMatching = false);
   }
-
-  setState(() => _isMatching = false);
-}
-
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate() && _matchedAge != null && _liveImage != null) {
@@ -314,24 +312,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 text: 'Register',
                 onPressed: _register,
                 isLoading: _isRegistering,
-              ),
-              const SizedBox(height: 16),
-              CustomButton(
-                text: 'Skip to HomeScreen',
-                onPressed: () {
-                  final user = UserModel(
-                    id: const Uuid().v4(),
-                    name: 'Dummy User',
-                    email: 'dummy@example.com',
-                    password: 'DummyPass123!',
-                    age: 35,
-                  );
-                  Provider.of<UserProvider>(context, listen: false).setUser(user);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                },
               ),
             ],
           ),
