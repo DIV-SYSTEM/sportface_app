@@ -26,7 +26,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
   final TextEditingController groupNameController = TextEditingController();
   final TextEditingController venueController = TextEditingController();
   final TextEditingController cityController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
+  String? description; // Changed from TextEditingController to String
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
   double? latitude;
@@ -37,6 +37,12 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
   String? paidStatus;
 
   final List<String> sports = Constants.sports;
+  final List<String> descriptionOptions = [
+    'Looking for a Professional Companion',
+    'Looking for a Solo Companion',
+    'Looking for an Online Companion',
+    'Looking for Multiple Companions',
+  ];
 
   String getLogoPath(String sport) {
     return "assets/images/${sport.toLowerCase()}.jpg";
@@ -80,7 +86,8 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
         ageLimit != null &&
         paidStatus != null &&
         latitude != null &&
-        longitude != null) {
+        longitude != null &&
+        description != null) {
       final eventId = "event${companionData.length + 1}";
       final groupId = "group${groupData.length + 1}";
       final organiserName = organiserController.text.trim();
@@ -94,7 +101,7 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
         organiserName: organiserName,
         venue: venueController.text.trim(),
         city: cityController.text.trim(),
-        description: descriptionController.text.trim(),
+        description: description!, // Updated to use description string
         date:
             "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
         time: selectedTime!.format(context),
@@ -202,14 +209,24 @@ class _CreateRequirementFormState extends State<CreateRequirementForm> {
                       value == null || value.isEmpty ? 'Please enter city' : null,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: descriptionController,
-                  maxLines: 3,
+                DropdownButtonFormField<String>(
+                  value: description,
+                  items: descriptionOptions.map((desc) {
+                    return DropdownMenuItem(
+                      value: desc,
+                      child: Text(
+                        desc,
+                        overflow: TextOverflow.ellipsis, // Prevents text overflow
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => description = value),
                   decoration: const InputDecoration(
                     labelText: "Description",
                     prefixIcon: Icon(Icons.description),
                   ),
-                  validator: Validators.validateDescription,
+                  validator: (value) =>
+                      value == null || value.isEmpty ? 'Please select a description' : null,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
