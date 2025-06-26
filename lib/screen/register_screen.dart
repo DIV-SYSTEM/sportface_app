@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -140,11 +139,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
-  
+
     setState(() => _isMatching = true);
 
     try {
-      final uri = Uri.parse('https://7466-116-73-38-158.ngrok-free.app/api/verify/');
+      final uri = Uri.parse('https://fab9-125-99-215-59.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri);
 
       request.headers['Content-Type'] = 'multipart/form-data';
@@ -167,32 +166,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('API response: ${response.statusCode}, body: ${response.body}');
       }
 
-      Map<String, dynamic> data = {};
-
-      try {
-        data = jsonDecode(response.body) as Map<String, dynamic>;
-      } catch (e) {
-        if (kDebugMode) {
-          print('Failed to parse JSON: $e, body: ${response.body}');
-        }
-        data = {'verified': false, 'message': 'Server returned invalid response'};
+      if (response.statusCode != 200) {
+        throw Exception('Server error: ${response.statusCode}');
       }
 
+      final Map<String, dynamic> data = jsonDecode(response.body);
       if (data['verified'] == true) {
         setState(() {
-          _dob = data['dob'] as String?;
-          _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
+          _dob = data['dob'];
+          _matchedAge = _extractAgeFromDOB(_dob!);
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched!\nAge: ${_matchedAge ?? 'Unknown'}, DOB: $_dob')),
+          SnackBar(content: Text('Face matched! Age: $_matchedAge')),
         );
       } else {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Verification Failed'),
-            content: Text(data['message']?.toString() ?? 'Unknown error'),
+            content: Text(data['message'] ?? 'Unknown error'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
             ],
@@ -203,15 +195,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (kDebugMode) {
         print('Error in _matchImages: $e');
       }
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('Failed to verify images: ${e.toString()}'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-          ],
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
       );
     }
 
@@ -313,6 +298,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 text: 'Register',
                 onPressed: _register,
                 isLoading: _isRegistering,
+              ),
+              const SizedBox(height: 16),
+              CustomButton(
+                text: 'Skip to HomeScreen',
+                onPressed: () {
+                  final user = UserModel(
+                    id: const Uuid().v4(),
+                    name: 'Dummy User',
+                    email: 'dummy@example.com',
+                    password: 'DummyPass123!',
+                    age: 35,
+                  );
+                  Provider.of<UserProvider>(context, listen: false).setUser(user);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  );
+                },
               ),
             ],
           ),
