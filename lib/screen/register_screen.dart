@@ -199,7 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       bool isVerified = data['verified'] ?? data['Verified'] ?? false;
-      String? message = data['message'] ?? data['Message'] ?? 'Unknown server error';
+      String message = data['message']?.toString() ?? data['Message']?.toString() ?? 'Unknown server error';
 
       if (isVerified) {
         setState(() {
