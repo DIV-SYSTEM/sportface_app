@@ -139,14 +139,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
- 
+
     setState(() => _isMatching = true);
 
     try {
       final uri = Uri.parse('https://859c-116-73-38-158.ngrok-free.app/api/verify/');
       final request = http.MultipartRequest('POST', uri);
 
-      request.headers['Content-Type'] = 'multipart/form-data';
       request.headers['Accept'] = 'application/json';
 
       final aadhaarFile = await _preprocessImage(_aadhaarImage!);
@@ -156,8 +155,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         throw Exception('Preprocessed image files are missing');
       }
 
-      request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
-      request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
+      request.files.add(await http.MultipartFile.fromPath('document', aadhaarFile.path));
+      request.files.add(await http.MultipartFile.fromPath('selfie', liveFile.path));
 
       final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
       final response = await http.Response.fromStream(streamedResponse);
