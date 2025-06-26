@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -58,11 +59,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
         return age;
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error parsing DOB: $e, DOB: $dob');
-      }
-    }
+    } catch (_) {}
     return 0;
   }
 
@@ -77,16 +74,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         maxHeight: 1080,
       );
       if (pickedFile != null) {
-        final extension = pickedFile.path.split('.').last.toLowerCase();
-        if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select a JPEG or PNG image')),
-          );
-          return;
-        }
         setState(() => _aadhaarImage = pickedFile);
         if (kDebugMode) {
-          print('Aadhaar image selected: ${pickedFile.path}, format: $extension, size: ${await File(pickedFile.path).length()} bytes');
+          print('Aadhaar image selected: ${pickedFile.path}, size: ${await File(pickedFile.path).length()} bytes');
         }
       }
     } else {
@@ -105,16 +95,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       maxHeight: 1080,
     );
     if (pickedFile != null) {
-      final extension = pickedFile.path.split('.').last.toLowerCase();
-      if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a JPEG or PNG image')),
-        );
-        return;
-      }
       setState(() => _liveImage = pickedFile);
       if (kDebugMode) {
-        print('Live image selected: ${pickedFile.path}, format: $extension, size: ${await File(pickedFile.path).length()} bytes');
+        print('Live image selected: ${pickedFile.path}, size: ${await File(pickedFile.path).length()} bytes');
       }
     } else if (!kIsWeb) {
       final status = await Permission.camera.request();
@@ -127,21 +110,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<File> _preprocessImage(XFile imageFile) async {
-    if (kDebugMode) {
-      print('Processing image: ${imageFile.path}, format: ${imageFile.path.split('.').last}');
+    final file = File(imageFile.path);
+    if (!await file.exists()) {
+      throw Exception('Image file does not exist: ${imageFile.path}');
     }
-    final bytes = await imageFile.readAsBytes();
-    if (kDebugMode) {
-      print('Image bytes read: ${bytes.length}');
-    }
-    img.Image? image = img.decodeImage(bytes);
+
+    final imageBytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(imageBytes);
     if (image == null) {
       throw Exception('Failed to decode image: ${imageFile.path}');
     }
+
     image = img.bakeOrientation(image);
+
     final tempDir = Directory.systemTemp;
     final tempFile = File('${tempDir.path}/${imageFile.name}.jpg');
     await tempFile.writeAsBytes(img.encodeJpg(image, quality: 100));
+
     if (kDebugMode) {
       print('Preprocessed image saved: ${tempFile.path}, size: ${await tempFile.length()} bytes');
     }
@@ -151,11 +136,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _matchImages() async {
     if (_aadhaarImage == null || _liveImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload both Aadhaar/PAN and live images')),
+        const SnackBar(content: Text('Please upload both images')),
       );
       return;
     }
-
+  
     setState(() => _isMatching = true);
 
     try {
@@ -169,52 +154,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final liveFile = await _preprocessImage(_liveImage!);
 
       if (!await aadhaarFile.exists() || !await liveFile.exists()) {
-        throw Exception('Preprocessed image files are missing: Aadhaar: ${aadhaarFile.path}, Live: ${liveFile.path}');
+        throw Exception('Preprocessed image files are missing');
       }
 
       request.files.add(await http.MultipartFile.fromPath('aadhaar_image', aadhaarFile.path));
       request.files.add(await http.MultipartFile.fromPath('selfie_image', liveFile.path));
 
-      if (kDebugMode) {
-        print('Sending API request to: $uri');
-      }
-      final startTime = DateTime.now();
       final streamedResponse = await request.send().timeout(const Duration(seconds: 50));
       final response = await http.Response.fromStream(streamedResponse);
-      final duration = DateTime.now().difference(startTime).inSeconds;
 
       if (kDebugMode) {
-        print('API response: status=${response.statusCode}, body=${response.body}, duration=${duration}s');
+        print('API response: ${response.statusCode}, body: ${response.body}');
       }
 
       Map<String, dynamic> data = {};
+
       try {
-        final cleanedBody = response.body.trim().replaceAll(RegExp(r'\s+'), ' ');
-        data = jsonDecode(cleanedBody) as Map<String, dynamic>;
+        data = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (e) {
         if (kDebugMode) {
           print('Failed to parse JSON: $e, body: ${response.body}');
         }
-        data = {'verified': false, 'message': 'Server returned invalid response: ${response.body}'};
+        data = {'verified': false, 'message': 'Server returned invalid response'};
       }
 
-      bool isVerified = data['verified'] ?? data['Verified'] ?? false;
-      String message = data['message']?.toString() ?? data['Message']?.toString() ?? 'Unknown server error';
-
-      if (isVerified) {
+      if (data['verified'] == true) {
         setState(() {
           _dob = data['dob'] as String?;
           _matchedAge = _dob != null ? _extractAgeFromDOB(_dob!) : null;
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Face matched!\nAge: ${_matchedAge ?? 'Unknown'}, DOB: ${_dob ?? 'Not provided'}')),
+          SnackBar(content: Text('Face matched!\nAge: ${_matchedAge ?? 'Unknown'}, DOB: $_dob')),
         );
       } else {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Verification Failed'),
-            content: Text(message),
+            content: Text(data['message']?.toString() ?? 'Unknown error'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
             ],
@@ -229,7 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Error'),
-          content: Text('Failed to verify images: $e'),
+          content: Text('Failed to verify images: ${e.toString()}'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
           ],
