@@ -140,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
-
+ 
     setState(() => _isMatching = true);
 
     try {
